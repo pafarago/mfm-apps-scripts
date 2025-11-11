@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 16px;
+        text-align: left;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 6px 0;
+      }
+      p {
+        font-size: 13px;
+        margin: 0 0 10px 0;
+      }
+      .field {
+        margin-top: 8px;
+        max-width: 420px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 2px;
+      }
+      .required {
+        color: #b00;
+      }
+      input, textarea {
+        width: 100%;
+        padding: 6px;
+        font-size: 13px;
+        box-sizing: border-box;
+      }
+      textarea {
+        resize: vertical;
+      }
+      button {
+        margin-top: 12px;
+        padding: 8px 14px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #msg {
+        margin-top: 10px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+  <!-- MyRegistrationMarkup -->
+    <h1>Subscribe to Midlothian Friends News</h1>
+    <p>
+      Please enter your information below. Fields marked
+      <span class="required">*</span> are required.
+      You will receive an email to confirm your subscription.
+    </p>
+
+    <div class="field">
+      <label for="email">Email <span class="required">*</span></label>
+      <input id="email" type="email" required>
+    </div>
+
+    <div class="field">
+      <label for="firstName">First name <span class="required">*</span></label>
+      <input id="firstName" type="text" required>
+    </div>
+
+    <div class="field">
+      <label for="lastName">Last name (optional)</label>
+      <input id="lastName" type="text">
+    </div>
+
+    <div class="field">
+      <label for="phone">Phone (optional)</label>
+      <input id="phone" type="text">
+    </div>
+
+    <div class="field">
+      <label for="address">Postal address (optional)</label>
+      <textarea id="address" rows="3"></textarea>
+    </div>
+
+    <button type="button" onclick="submitForm()">Save My Registration</button>
+
+    <div id="msg"></div>
+
+<script>
+  // Debug: ask Apps Script which build this is
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(function (id) {
+        console.log('DEBUG BuildId:', id);
+      })
+      .withFailureHandler(function (err) {
+        console.log('DEBUG getBuildId failed:', err);
+      })
+      .getBuildId();
+  } else {
+    console.log('DEBUG google.script.run not available at load');
+  }
+
+  function submitForm() {
+    const msg = document.getElementById('msg');
+    msg.textContent = '';
+
+    const email = document.getElementById('email').value.trim();
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName = document.getElementById('lastName').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const address = document.getElementById('address').value.trim();
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) { msg.textContent = 'Email is required.'; return; }
+    if (!emailRegex.test(email)) { msg.textContent = 'Please enter a valid email address.'; return; }
+    if (!firstName && !lastName) {
+      msg.textContent = 'Please provide at least a first or last name.'; return;
+    }
+
+    msg.textContent = 'Submitting…';
+
+    const data = { email, firstName, lastName, phone, address };
+
+    try {
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        msg.textContent = 'Client error: Apps Script API not available.';
+        return;
+      }
+
+      // Debug: see what this page thinks selfRegSubmit_ is
+      console.log(
+         'DEBUG typeof google.script.run.selfRegSubmit =',
+          typeof google.script.run.selfRegSubmit
+       );
+
+      // Optional: confirm which build is running
+      google.script.run
+        .withSuccessHandler(function (id) {
+          console.log('DEBUG BuildId:', id);
+        })
+        .withFailureHandler(function (err) {
+          console.log('DEBUG getBuildId failed:', err);
+        })
+        .getBuildId();
+
+      // Actual submit
+      google.script.run
+        .withSuccessHandler(function (responseText) {
+          msg.textContent =
+            responseText || 'Thank you. Please check your email to confirm your subscription.';
+        })
+        .withFailureHandler(function (err) {
+          msg.textContent =
+            'Error: ' + (err && err.message ? err.message : err);
+        })
+        .selfRegSubmit(data);
+ 
+
+
+    } catch (e) {
+      msg.textContent = 'JS error: ' + e;
+      console.log('DEBUG submitForm exception:', e);
+    }
+  }
+</script>
+  </body>
+</html>

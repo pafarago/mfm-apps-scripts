@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 16px;
+      }
+      h1 {
+        font-size: 20px;
+        margin-bottom: 8px;
+      }
+      #searchBar {
+        margin-bottom: 8px;
+      }
+      #searchInput {
+        padding: 6px 8px;
+        width: 260px;
+        max-width: 90%;
+      }
+      #status {
+        font-size: 12px;
+        color: #555;
+        margin-top: 4px;
+        margin-bottom: 8px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 12px;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 4px 6px;
+      }
+      th {
+        background: #f3f3f3;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      tr:nth-child(even) td {
+        background: #fafafa;
+      }
+      input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        border: none;
+        padding: 2px 3px;
+        font-size: 12px;
+        background: transparent;
+      }
+      input[type="checkbox"] {
+        transform: scale(1.1);
+      }
+      .controls {
+        margin-top: 8px;
+      }
+      button {
+        padding: 6px 10px;
+        margin-right: 6px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .dirty {
+        background-color: #fff3cd !important;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>MFM Roster Editor</h1>
+    <div id="searchBar">
+      <input id="searchInput" type="text" placeholder="Search by name, email, phone, etc.">
+      <button onclick="clearSearch()">Clear</button>
+    </div>
+    <div id="status">Loading roster…</div>
+    <div class="controls">
+      <button onclick="saveChanges()">Save Changes</button>
+      <button onclick="revertChanges()">Revert Unsaved Changes</button>
+      <button onclick="addNewRow()">Add New Record</button>
+    </div>
+    <div style="max-height: 480px; overflow:auto; margin-top:4px;">
+      <table id="rosterTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="controls">
+      <button onclick="saveChanges()">Save Changes</button>
+      <button onclick="revertChanges()">Revert Unsaved Changes</button>
+      <button onclick="addNewRow()">Add New Record</button>
+    </div>
+
+    <script>
+      let headers = [];
+      let rows = [];         // { rowNum, values }
+      let filteredRows = []; // indices into rows
+      let dirtyMap = {};     // key -> updated values (key = rowNum or 'new_*')
+
+      function isBooleanLike(value) {
+        if (typeof value === 'boolean') return true;
+        if (typeof value === 'string') {
+          const s = value.trim().toLowerCase();
+          return ['true','false','yes','no','y','n','1','0','on','off'].includes(s);
+        }
+        return false;
+      }
+
+      function boolFromValue(value) {
+        if (value === true) return true;
+        if (value === false) return false;
+        if (typeof value === 'string') {
+          const s = value.trim().toLowerCase();
+          if (['true','yes','y','1','on','checked'].includes(s)) return true;
+          if (['false','no','n','0','off',''].includes(s)) return false;
+        }
+        return false;
+      }
+
+      function valueFromInput(header, inputEl) {
+        if (inputEl.type === 'checkbox') {
+          return inputEl.checked;
+        }
+        return inputEl.value;
+      }
+
+      function buildTable() {
+        const thead = document.querySelector('#rosterTable thead');
+        const tbody = document.querySelector('#rosterTable tbody');
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        if (!headers.length) return;
+
+        // Header row
+        const trHead = document.createElement('tr');
+        headers.forEach(h => {
+          const th = document.createElement('th');
+          th.textContent = h;
+          trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+
+        // Body
+        filteredRows.forEach(idx => {
+          const row = rows[idx];
+          const tr = document.createElement('tr');
+          tr.dataset.rowNum = row.rowNum;
+
+          row.values.forEach((val, colIdx) => {
+            const td = document.createElement('td');
+            const header = headers[colIdx] || '';
+
+            if (isBooleanLike(val)) {
+              const cb = document.createElement('input');
+              cb.type = 'checkbox';
+              cb.checked = boolFromValue(val);
+              cb.onchange = () => markDirty(tr, colIdx, cb);
+              td.style.textAlign = 'center';
+              td.appendChild(cb);
+            } else {
+              const inp = document.createElement('input');
+              inp.type = 'text';
+              inp.value = (val === null || typeof val === 'undefined') ? '' : val;
+              inp.onchange = () => markDirty(tr, colIdx, inp);
+              td.appendChild(inp);
+            }
+
+            tr.appendChild(td);
+          });
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function markDirty(tr, colIdx, inputEl) {
+        const key = tr.dataset.rowNum; // may be numeric or 'new_*'
+        if (!dirtyMap[key]) {
+          const base = rows.find(r => String(r.rowNum) === String(key));
+          dirtyMap[key] = base ? base.values.slice() : new Array(headers.length).fill('');
+        }
+        dirtyMap[key][colIdx] = valueFromInput(headers[colIdx], inputEl);
+        tr.classList.add('dirty');
+        updateStatus();
+      }
+
+      function updateStatus() {
+        const dirtyCount = Object.keys(dirtyMap).length;
+        const total = filteredRows.length;
+        const status = document.getElementById('status');
+        if (!headers.length) {
+          status.textContent = 'No data loaded.';
+        } else if (dirtyCount > 0) {
+          status.textContent = `Showing ${total} record(s). Pending changes for ${dirtyCount} row(s).`;
+        } else {
+          status.textContent = `Showing ${total} record(s). No unsaved changes.`;
+        }
+      }
+
+      function applySearch() {
+        const q = document.getElementById('searchInput').value.trim().toLowerCase();
+        if (!q) {
+          filteredRows = rows.map((_, i) => i);
+        } else {
+          filteredRows = [];
+          rows.forEach((row, i) => {
+            const hay = row.values.join(' ').toLowerCase();
+            if (hay.includes(q)) {
+              filteredRows.push(i);
+            }
+          });
+        }
+        buildTable();
+        updateStatus();
+      }
+
+      function clearSearch() {
+        document.getElementById('searchInput').value = '';
+        applySearch();
+      }
+
+      function revertChanges() {
+        if (!confirm('Discard all unsaved changes and reload from the roster?')) {
+          return;
+        }
+        document.getElementById('status').textContent = 'Reloading roster…';
+        dirtyMap = {};
+        google.script.run
+          .withSuccessHandler(function(data) {
+            headers = data.headers || [];
+            rows = data.rows || [];
+            filteredRows = rows.map((_, i) => i);
+            buildTable();
+            updateStatus();
+          })
+          .withFailureHandler(function(err) {
+            console.error(err);
+            document.getElementById('status').textContent =
+              'Error reloading roster: ' + err.message;
+          })
+          .getRosterData();
+      }
+
+      function addNewRow() {
+        const numCols = headers.length;
+        if (numCols === 0) {
+          alert('Roster not loaded yet.');
+          return;
+        }
+
+        const emptyValues = new Array(numCols).fill('');
+        const key = 'new_' + (Object.keys(dirtyMap).length + 1);
+
+        // Track as dirty so Save knows about it
+        dirtyMap[key] = emptyValues.slice();
+
+        // Insert at top of rows array
+        rows.unshift({ rowNum: key, values: emptyValues });
+        // Rebuild filtered index: shift old indices by +1 and put new row at 0
+        filteredRows = [0, ...filteredRows.map(i => i + 1)];
+
+        buildTable();
+        updateStatus();
+        alert('New blank row added at the top. Fill it in, then click "Save Changes" to create it.');
+      }
+
+      function saveChanges() {
+        const keys = Object.keys(dirtyMap);
+        if (keys.length === 0) {
+          alert('No changes to save.');
+          return;
+        }
+
+        const payload = keys.map(k => {
+          const n = parseInt(k, 10);
+          return {
+            rowNum: isNaN(n) ? null : n,
+            values: dirtyMap[k]
+          };
+        });
+
+        document.getElementById('status').textContent = 'Saving changes…';
+
+        google.script.run
+          .withSuccessHandler(function(result) {
+            // After saving (including new rows), reload the roster
+            dirtyMap = {};
+            google.script.run
+              .withSuccessHandler(function(data) {
+                headers = data.headers || [];
+                rows = data.rows || [];
+                filteredRows = rows.map((_, i) => i);
+                buildTable();
+                document.getElementById('status').textContent =
+                  `Saved ${result.updated} row(s).`;
+              })
+              .withFailureHandler(function(err) {
+                console.error(err);
+                document.getElementById('status').textContent =
+                  'Error reloading after save: ' + err.message;
+              })
+              .getRosterData();
+          })
+          .withFailureHandler(function(err) {
+            console.error(err);
+            alert('Error saving changes: ' + err.message);
+            updateStatus();
+          })
+          .saveRosterRows(payload);
+      }
+
+      // Initial load
+      google.script.run
+        .withSuccessHandler(function(data) {
+          headers = data.headers || [];
+          rows = data.rows || [];
+          filteredRows = rows.map((_, i) => i);
+          buildTable();
+          updateStatus();
+        })
+        .withFailureHandler(function(err) {
+          console.error(err);
+          document.getElementById('status').textContent =
+            'Error loading roster: ' + err.message;
+        })
+        .getRosterData();
+
+      // Debounced search
+      let searchTimer = null;
+      document.getElementById('searchInput').addEventListener('input', function() {
+        if (searchTimer) window.clearTimeout(searchTimer);
+        searchTimer = window.setTimeout(applySearch, 200);
+      });
+    </script>
+  </body>
+</html>
