@@ -1,170 +1,436 @@
+<!-- Begin ChatGPT code block 2025-11-13 00:18 EST — Self-Registration (margin, font, logo fix) -->
 <!DOCTYPE html>
 <html>
   <head>
     <base target="_top">
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Midlothian Friends — Self-Registration</title>
     <style>
-      body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        margin: 16px;
-        text-align: left;
+      :root{
+        --brand:#0a3a66;
+        --brand-2:#0f6db3;
+        --text:#222;
+        --border:#ddd;
+        --card:#fff;
+        --radius:12px;
+        --shadow:0 2px 12px rgba(0,0,0,.08);
       }
-      h1 {
-        font-size: 20px;
-        margin: 0 0 6px 0;
+      *, *::before, *::after{ box-sizing:border-box; }
+      html,body{ height:100%; }
+      body{
+        margin:0;
+        font-family: Georgia,"Times New Roman",Times,serif;
+        color:var(--text);
+        background:#f5f5f7;
+        /* Bigger than before for readability, esp. on phones */
+        font-size:clamp(18px, 4.8vw, 20px);
+        line-height:1.45;
       }
-      p {
-        font-size: 13px;
-        margin: 0 0 10px 0;
+      img{ max-width:100%; height:auto; display:block; }
+
+      /* Shell */
+      main#site-content{
+        min-height:100vh;
+        padding:20px 16px 24px;
       }
-      .field {
-        margin-top: 8px;
-        max-width: 420px;
+
+      /* Card: about 30-character line width + margin around */
+      .content-box{
+        background:var(--card);
+        border:1px solid var(--border);
+        border-radius:var(--radius);
+        box-shadow:var(--shadow);
+        width:min(100% - 40px, 32rem);  /* ~30ch wide with margins */
+        margin:35px auto;               /* ≈20px top/bottom + side margin */
+        padding:24px 20px 26px;
       }
-      label {
-        display: block;
-        font-size: 13px;
-        margin-bottom: 2px;
+
+      /* Desktop (>=1000px): center card vertically */
+      @media (min-width: 1000px){
+        main#site-content{
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          padding:24px 16px;
+        }
       }
-      .required {
-        color: #b00;
+
+      /* Phones & tablets (<=999px): no flex; card shrinks to content, keeps margin */
+      @media (max-width: 999px){
+        main#site-content{
+          min-height:auto;
+          padding:20px 0 24px;
+          display:block;
+        }
+        .content-box{
+          /* keep width+margin from base rule; just ensure no forced height */
+          min-height:auto;
+          height:auto;
+	  margin:35px auto !important;
+        }
       }
-      input, textarea {
-        width: 100%;
-        padding: 6px;
-        font-size: 13px;
-        box-sizing: border-box;
+
+      .header-stack{
+        text-align:center;
+        margin-bottom:14px;
       }
-      textarea {
-        resize: vertical;
+      .header-stack img{
+        width:130px;
+        margin:0 auto 6px;
       }
-      button {
-        margin-top: 12px;
-        padding: 8px 14px;
-        font-size: 13px;
-        cursor: pointer;
+      .site-line{
+        font-weight:600;
+        font-size:clamp(1.2rem, 2.4vw + 1rem,1.55rem);
+        line-height:1.2;
       }
-      #msg {
-        margin-top: 10px;
-        font-size: 13px;
+      .sub-line{
+        font-weight:600;
+        font-size:clamp(1.15rem, 2.2vw + 0.95rem,1.4rem);
+        line-height:1.2;
+        border-bottom:1px solid var(--border);
+        padding-bottom:6px;
       }
+
+      .intro{
+        font-size:1.02rem;
+        margin:12px 0 8px;
+      }
+      .required{ color:#b00; }
+      .field{ margin-top:12px; }
+      label{
+        display:block;
+        font-size:1rem;
+        margin-bottom:4px;
+      }
+
+      input, textarea{
+        width:100%;
+        padding:13px 12px;
+        font-size:1.05rem;
+        border:1px solid var(--border);
+        border-radius:10px;
+        background:#fff;
+      }
+      textarea{
+        resize:vertical;
+        min-height:90px;
+        white-space:pre-wrap;
+      }
+
+      .actions{
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        margin-top:16px;
+      }
+      .btn{
+        appearance:none;
+        border:1px solid var(--border);
+        padding:10px 18px;
+        border-radius:9999px;
+        cursor:pointer;
+        font-size:1rem;
+        background:#f7f7f7;
+      }
+      .btn-primary{
+        background:var(--brand);
+        border-color:var(--brand);
+        color:#fff;
+      }
+      .btn:disabled{
+        opacity:.6;
+        cursor:not-allowed;
+      }
+      #msg{
+        margin-top:10px;
+        font-size:.98rem;
+      }
+      #msg.error{ color:#b00; }
+
+      .form-wrap{
+        width:100%;
+        margin:0;
+      }
+
+      #phoneHelp{
+        font-size:.9rem;
+        opacity:.85;
+        margin-top:3px;
+      }
+
+      .visually-hidden{
+        position:absolute;
+        left:-10000px;
+        top:auto;
+        width:1px;
+        height:1px;
+        overflow:hidden;
+      }
+      /* Mobile/tablet scaling (≤ 999px): increase overall visual size */
+/* Stronger mobile/tablet scaling (≤ 999px) */
+@media (max-width: 999px){
+
+  /* Increase global base scaling */
+  html {
+    font-size: 26px !important;    /* Was 22px — now larger */
+  }
+
+  body {
+    font-size: 1.1rem !important;
+    line-height: 1.55 !important;
+  }
+
+  input, textarea {
+    font-size: 1.15rem !important;
+    padding: 18px 16px !important;
+  }
+
+  label {
+    font-size: 1.05rem !important;
+  }
+
+  .intro, #phoneHelp, #msg {
+    font-size: 1.05rem !important;
+  }
+
+  .btn {
+    font-size: 1.15rem !important;
+    padding: 16px 22px !important;
+  }
+
+  .header-stack img {
+    width: 170px !important;       /* enlarge logo appropriately */
+  }
+
+  /* Final stretch across viewport */
+  .content-box {
+    transform: scale(1.14);        /* Was 1.06 — now more substantial */
+    transform-origin: top center;
+  }
+}
+
     </style>
   </head>
   <body>
-  <!-- MyRegistrationMarkup -->
-    <h1>Subscribe to Midlothian Friends News</h1>
-    <p>
-      Please enter your information below. Fields marked
-      <span class="required">*</span> are required.
-      You will receive an email to confirm your subscription.
-    </p>
+    <main id="site-content">
+      <section class="content-box" role="region" aria-labelledby="title">
+        <div class="header-stack">
+          <img
+            src="https://midlothianfriends.freeddns.org/logo.png"
+            alt="Midlothian Friends Meeting logo">
+          <div class="site-line">Midlothian Friends Meeting</div>
+          <div class="sub-line">News Subscription</div>
+        </div>
 
-    <div class="field">
-      <label for="email">Email <span class="required">*</span></label>
-      <input id="email" type="email" required>
-    </div>
+        <h1 id="title" class="visually-hidden">News Subscription</h1>
 
-    <div class="field">
-      <label for="firstName">First name <span class="required">*</span></label>
-      <input id="firstName" type="text" required>
-    </div>
+        <p class="intro">
+          Enter your info and press Continue. Check your email to complete your registration.
+        </p>
 
-    <div class="field">
-      <label for="lastName">Last name (optional)</label>
-      <input id="lastName" type="text">
-    </div>
+        <form id="sr-form" class="form-wrap" novalidate>
+          <div class="field">
+            <label for="email">Email <span class="required">*</span></label>
+            <input
+              id="email"
+              type="email"
+              required
+              inputmode="email"
+              autocomplete="email"
+              maxlength="30"
+              placeholder="name@example.org">
+          </div>
 
-    <div class="field">
-      <label for="phone">Phone (optional)</label>
-      <input id="phone" type="text">
-    </div>
+          <div class="field">
+            <label for="firstName">First name <span class="required">*</span></label>
+            <input
+              id="firstName"
+              type="text"
+              required
+              autocomplete="given-name"
+              maxlength="30"
+              placeholder="First">
+          </div>
 
-    <div class="field">
-      <label for="address">Postal address (optional)</label>
-      <textarea id="address" rows="3"></textarea>
-    </div>
+          <div class="field">
+            <label for="lastName">Last name <span class="required">*</span></label>
+            <input
+              id="lastName"
+              type="text"
+              required
+              autocomplete="family-name"
+              maxlength="30"
+              placeholder="Last">
+          </div>
 
-    <button type="button" onclick="submitForm()">Save My Registration</button>
+          <!-- U.S. phone only; optional; 14 chars formatted: (AAA) BBB-CCCC -->
+          <div class="field">
+            <label for="phone">Phone (optional)</label>
+            <input
+              id="phone"
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel"
+              maxlength="14"
+              placeholder="(804) 658-1234"
+              aria-describedby="phoneHelp">
+            <div id="phoneHelp">
+              U.S. numbers only. If entered, it must be valid and will be formatted automatically.
+            </div>
+          </div>
 
-    <div id="msg"></div>
+          <div class="field">
+            <label for="address">Postal address (optional)</label>
+            <textarea
+              id="address"
+              rows="3"
+              maxlength="90"
+              placeholder="Street, City&#10;State ZIP"></textarea>
+          </div>
 
-<script>
-  // Debug: ask Apps Script which build this is
-  if (typeof google !== 'undefined' && google.script && google.script.run) {
-    google.script.run
-      .withSuccessHandler(function (id) {
-        console.log('DEBUG BuildId:', id);
-      })
-      .withFailureHandler(function (err) {
-        console.log('DEBUG getBuildId failed:', err);
-      })
-      .getBuildId();
-  } else {
-    console.log('DEBUG google.script.run not available at load');
-  }
+          <div class="actions">
+            <button id="saveBtn"   class="btn btn-primary" type="button">Continue</button>
+            <button id="cancelBtn" class="btn"             type="button">Cancel</button>
+          </div>
 
-  function submitForm() {
-    const msg = document.getElementById('msg');
-    msg.textContent = '';
+          <div id="msg" role="status" aria-live="polite"></div>
+        </form>
+      </section>
+    </main>
 
-    const email = document.getElementById('email').value.trim();
-    const firstName = document.getElementById('firstName').value.trim();
-    const lastName = document.getElementById('lastName').value.trim();
-    const phone = document.getElementById('phone').value.trim();
-    const address = document.getElementById('address').value.trim();
+    <script>
+      const saveBtn   = document.getElementById('saveBtn');
+      const cancelBtn = document.getElementById('cancelBtn');
+      const phoneEl   = document.getElementById('phone');
+      const addr      = document.getElementById('address');
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) { msg.textContent = 'Email is required.'; return; }
-    if (!emailRegex.test(email)) { msg.textContent = 'Please enter a valid email address.'; return; }
-    if (!firstName && !lastName) {
-      msg.textContent = 'Please provide at least a first or last name.'; return;
-    }
+      saveBtn.addEventListener('click', submitForm);
 
-    msg.textContent = 'Submitting…';
+      // Cancel → replace tab with splash screen
+      cancelBtn.addEventListener('click', function(){
+        const splash = `
+          <style>
+            html,body{
+              height:100%;
+              margin:0;
+              font-family:Georgia,"Times New Roman",Times,serif;
+              background:#f5f5f7;
+              color:#222;
+              display:grid;
+              place-items:center;
+            }
+            .splash{
+              max-width:720px;
+              padding:24px;
+              text-align:center;
+            }
+            .splash h2{
+              font-size:clamp(1.25rem,3.5vw,1.75rem);
+              margin:0 0 10px;
+            }
+            .splash p{
+              font-size:clamp(1rem,2.8vw,1.15rem);
+              margin:0;
+            }
+          </style>
+          <div class="splash">
+            <h2>You have successfully canceled your request.</h2>
+            <p>You have successfully canceled your request to subscribe to the News from Midlothian Friends Meeting. You can close this tab in your browser.</p>
+          </div>`;
+        document.documentElement.innerHTML = splash;
+      });
 
-    const data = { email, firstName, lastName, phone, address };
+      // Address: max 3 lines, 30 chars each
+      addr.addEventListener('input', function(){
+        let lines = this.value.replace(/\r\n?/g, '\n').split('\n').slice(0,3);
+        lines = lines.map(l => l.substring(0,30));
+        this.value = lines.join('\n');
+      });
 
-    try {
-      if (typeof google === 'undefined' || !google.script || !google.script.run) {
-        msg.textContent = 'Client error: Apps Script API not available.';
-        return;
+      function setMsg(t, isError){
+        const el = document.getElementById('msg');
+        el.textContent = t || '';
+        el.className = isError ? 'error' : '';
       }
 
-      // Debug: see what this page thinks selfRegSubmit_ is
-      console.log(
-         'DEBUG typeof google.script.run.selfRegSubmit =',
-          typeof google.script.run.selfRegSubmit
-       );
+      // === U.S. NANP phone normalization (client-side) ===
+      function normalizeUSPhoneNANP(raw){
+        const s = String(raw || '').trim();
+        if(!s) return '';
+        const digits = s.replace(/\D+/g, '');
+        if(digits.length !== 10) throw new Error('Not a valid phone number');
 
-      // Optional: confirm which build is running
-      google.script.run
-        .withSuccessHandler(function (id) {
-          console.log('DEBUG BuildId:', id);
-        })
-        .withFailureHandler(function (err) {
-          console.log('DEBUG getBuildId failed:', err);
-        })
-        .getBuildId();
+        const a = digits.slice(0,3);
+        const b = digits.slice(3,6);
+        const c = digits.slice(6);
 
-      // Actual submit
-      google.script.run
-        .withSuccessHandler(function (responseText) {
-          msg.textContent =
-            responseText || 'Thank you. Please check your email to confirm your subscription.';
-        })
-        .withFailureHandler(function (err) {
-          msg.textContent =
-            'Error: ' + (err && err.message ? err.message : err);
-        })
-        .selfRegSubmit(data);
- 
+        if(!/^[2-9][0-9]{2}$/.test(a)) throw new Error('Not a valid phone number');
+        if(/^[2-9]11$/.test(a))        throw new Error('Not a valid phone number');
+        if(!/^[2-9][0-9]{2}$/.test(b)) throw new Error('Not a valid phone number');
+        if(/^[2-9]11$/.test(b))        throw new Error('Not a valid phone number');
 
+        return '('+a+') '+b+'-'+c; // 14 chars
+      }
 
-    } catch (e) {
-      msg.textContent = 'JS error: ' + e;
-      console.log('DEBUG submitForm exception:', e);
-    }
-  }
-</script>
+      // On blur: validate/format, or alert + clear
+      phoneEl.addEventListener('blur', function(){
+        const raw = phoneEl.value;
+        if(!raw) return;
+        try{
+          phoneEl.value = normalizeUSPhoneNANP(raw);
+        }catch(err){
+          alert('Not a valid phone number');
+          phoneEl.value = '';
+        }
+      });
+
+      function submitForm(){
+        setMsg('');
+
+        const email     = document.getElementById('email').value.trim();
+        const firstName = document.getElementById('firstName').value.trim();
+        const lastName  = document.getElementById('lastName').value.trim();
+        let   phone     = phoneEl.value.trim();
+        const address   = document.getElementById('address').value;
+
+        if(email.length > 30)     return setMsg('Email max length is 30 characters.', true);
+        if(firstName.length > 30) return setMsg('First name max length is 30 characters.', true);
+        if(lastName.length > 30)  return setMsg('Last name max length is 30 characters.', true);
+        if(address.length > 90)   return setMsg('Postal address max length is 90 characters.', true);
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email)                 return setMsg('Email is required.', true);
+        if (!emailRegex.test(email)) return setMsg('Please enter a valid email address.', true);
+        if (!firstName)             return setMsg('First name is required.', true);
+        if (!lastName)              return setMsg('Last name is required.', true);
+
+        // Optional phone: if present, normalize once more; if invalid, drop it.
+        if (phone){
+          try{
+            phone = normalizeUSPhoneNANP(phone);
+          }catch(err){
+            phone = '';
+          }
+        }
+
+        setMsg('Submitting…');
+
+        if (typeof google === 'undefined' || !google.script || !google.script.run) {
+          return setMsg('Client error: Apps Script API not available.', true);
+        }
+
+        google.script.run
+          .withSuccessHandler(function (responseText) {
+            setMsg(responseText || 'Thank you. Please check your email to confirm your subscription.');
+            document.getElementById('sr-form').reset();
+          })
+          .withFailureHandler(function (err) {
+            setMsg('Error: ' + (err && err.message ? err.message : err), true);
+          })
+          .selfRegSubmit({ email, firstName, lastName, phone, address });
+      }
+    </script>
   </body>
 </html>
+<!-- End ChatGPT code block 2025-11-13 00:18 EST -->

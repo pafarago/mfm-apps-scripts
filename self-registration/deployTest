@@ -1,0 +1,12 @@
+#!/bin/bash
+# Deploy current HEAD to your TEST web app
+# Usage: ./deployTest "optional description"
+
+DESC=${1:-"Test build"}
+TEST_ID="AKfycbyKJcUOpzxpb5eKdZDCXbq2hk0ObochLaTSem9CI862H2y3lLuoFY5vrNArE2pi8eP5"
+
+echo "Pushing latest code to Apps Script..."
+clasp push || exit 1
+
+echo "Deploying to TEST ($TEST_ID) — Description: $DESC"
+clasp deploy --deploymentId "$TEST_ID" --description "$DESC"

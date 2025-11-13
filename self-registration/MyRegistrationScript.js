@@ -1,22 +1,20 @@
+// Begin ChatGPT code block 2025-11-12 22:40 EST — Self-Registration (US phone only)
 /**
  * MFM Self-Registration Web App (Public)
  *
- * This project:
- *  - Serves a public signup form.
+ *  - Serves a public signup form (MyRegistrationMarkup.html).
  *  - Stores submissions in PendingSelfRegistrations.
  *  - Emails a confirmation link to the requester.
  *  - On confirmation, creates/updates the roster record and sets QTC = TRUE.
  *
  * Security:
  *  - No roster data is ever shown in the web UI.
- *  - Only the spreadsheet's owner/managers, set as Editors in Drive sharing,
- *    can open or edit the roster directly.
+ *  - Only the spreadsheet's owner/managers (Editors in Drive) can open or edit the roster.
  *  - Web app should be deployed "Execute as: clerk/admin" and "Anyone".
  */
 
-const BUILD_ID = 'MyRegistrationV5 / Version12 / ' + new Date().toISOString();
+const BUILD_ID = 'MyRegistrationV6 / 2025-11-12T22:40:00Z';
 
-/** For debugging: confirm which code is running in the web app */
 function getBuildId() {
   return BUILD_ID;
 }
@@ -35,24 +33,60 @@ const SR_ADMIN_EMAIL        = 'clerk@midlothianfriends.org';  // optional but re
  */
 function doGet(e) {
   const token = e && e.parameter && e.parameter.confirm;
-
   if (token) {
     return srHandleConfirm_(String(token).trim());
   }
-
   return srRenderForm_();
 }
 
-/** Render the public vertical signup form (MyRegistrationMarkup.html) */
+/** Render the public signup form HTML */
 function srRenderForm_() {
   const t = HtmlService.createTemplateFromFile('MyRegistrationMarkup');
-  return t.evaluate()
+  return t
+    .evaluate()
     .setTitle('Midlothian Friends Newsletter Sign-up')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+/* =========================
+   Phone: U.S. NANP only
+   ========================= */
+
 /**
- * Called from MyRegistrationMarkup.html via google.script.run.selfRegSubmit_(form).
+ * Normalize/validate U.S. phone to "(AAA) BBB-CCCC".
+ *
+ * Rules:
+ *  - Strip non-digits; if empty → '' (optional field).
+ *  - Must be exactly 10 digits.
+ *  - 1st digit (area code) 2–9; not N11.
+ *  - 4th digit (central office) 2–9; not N11.
+ *  - Returns formatted string "(AAA) BBB-CCCC"; throws Error on invalid.
+ *
+ * If you later want stricter checks, you can add a NANPA area-code
+ * whitelist here before returning.
+ */
+function normalizeUSPhoneNANP_(raw) {
+  var s = String(raw || '').trim();
+  if (!s) return '';
+
+  var d = s.replace(/\D+/g, '');
+  if (d.length !== 10) throw new Error('Not a valid phone number');
+
+  var a = d.slice(0, 3);
+  var b = d.slice(3, 6);
+  var c = d.slice(6);
+
+  if (!/^[2-9][0-9]{2}$/.test(a)) throw new Error('Not a valid phone number');
+  if (/^[2-9]11$/.test(a))        throw new Error('Not a valid phone number');
+
+  if (!/^[2-9][0-9]{2}$/.test(b)) throw new Error('Not a valid phone number');
+  if (/^[2-9]11$/.test(b))        throw new Error('Not a valid phone number');
+
+  return '(' + a + ') ' + b + '-' + c;  // 14 chars
+}
+
+/**
+ * Called from MyRegistrationMarkup.html via google.script.run.selfRegSubmit(form).
  * Stores pending request, sends confirmation email, notifies admin.
  */
 function selfRegSubmit(form) {
@@ -61,19 +95,29 @@ function selfRegSubmit(form) {
   const email = String(form.email || '').trim().toLowerCase();
   const first = String(form.firstName || '').trim();
   const last  = String(form.lastName || '').trim();
-  const phone = String(form.phone || '').trim();
+  let   phone = String(form.phone || '').trim();
   const addr  = String(form.address || '').trim();
 
   if (!email) throw new Error('Email is required.');
   if (!first && !last) throw new Error('First or last name is required.');
 
+  // Phone: optional; if present must be valid U.S. NANP
+  if (phone) {
+    try {
+      phone = normalizeUSPhoneNANP_(phone);
+    } catch (err) {
+      // Do not block submission; just drop invalid phone
+      phone = '';
+    }
+  }
+
   const pending = srGetOrCreatePendingSheet_();
   const headers = pending.getRange(1, 1, 1, pending.getLastColumn()).getValues()[0];
 
-  const col = (name) => headers.indexOf(name) + 1;
+  const col = function(name) { return headers.indexOf(name) + 1; };
 
   const token = srGenerateToken_();
-  const now = new Date();
+  const now   = new Date();
 
   const row = [];
   row[col('Token') - 1]        = token;
@@ -99,27 +143,23 @@ function selfRegSubmit(form) {
  */
 function srHandleConfirm_(token) {
   if (!token) {
-    return HtmlService.createHtmlOutput(
-      '<p>Invalid confirmation link.</p>'
-    );
+    return HtmlService.createHtmlOutput('<p>Invalid confirmation link.</p>');
   }
 
   const pending = srGetOrCreatePendingSheet_();
-  const data = pending.getDataRange().getValues();
+  const data    = pending.getDataRange().getValues();
   if (data.length < 2) {
-    return HtmlService.createHtmlOutput(
-      '<p>Confirmation link not found or already used.</p>'
-    );
+    return HtmlService.createHtmlOutput('<p>Confirmation link not found or already used.</p>');
   }
 
   const headers = data[0];
-  const iToken   = headers.indexOf('Token');
-  const iEmail   = headers.indexOf('Email');
-  const iFirst   = headers.indexOf('First name');
-  const iLast    = headers.indexOf('Last name');
-  const iPhone   = headers.indexOf('Phone');
-  const iAddr    = headers.indexOf('Address');
-  const iConf    = headers.indexOf('Confirmed at');
+  const iToken  = headers.indexOf('Token');
+  const iEmail  = headers.indexOf('Email');
+  const iFirst  = headers.indexOf('First name');
+  const iLast   = headers.indexOf('Last name');
+  const iPhone  = headers.indexOf('Phone');
+  const iAddr   = headers.indexOf('Address');
+  const iConf   = headers.indexOf('Confirmed at');
 
   let rowIdx = -1;
   for (let r = 1; r < data.length; r++) {
@@ -130,48 +170,42 @@ function srHandleConfirm_(token) {
   }
 
   if (rowIdx === -1) {
-    return HtmlService.createHtmlOutput(
-      '<p>Confirmation link not found or already used.</p>'
-    );
+    return HtmlService.createHtmlOutput('<p>Confirmation link not found or already used.</p>');
   }
 
   if (data[rowIdx][iConf]) {
-    return HtmlService.createHtmlOutput(
-      '<p>This subscription has already been confirmed.</p>'
-    );
+    return HtmlService.createHtmlOutput('<p>This subscription has already been confirmed.</p>');
   }
 
   const email = String(data[rowIdx][iEmail] || '').trim().toLowerCase();
   const first = String(data[rowIdx][iFirst] || '').trim();
-  const last  = String(data[rowIdx][iLast] || '').trim();
+  const last  = String(data[rowIdx][iLast]  || '').trim();
   const phone = String(data[rowIdx][iPhone] || '').trim();
-  const addr  = String(data[rowIdx][iAddr] || '').trim();
+  const addr  = String(data[rowIdx][iAddr]  || '').trim();
 
-  // Apply confirmed subscription to roster (QTC = TRUE)
-  srApplyToRoster_(email, { first, last, phone, addr });
+  srApplyToRoster_(email, { first:first, last:last, phone:phone, addr:addr });
 
-  // Mark as confirmed
   pending.getRange(rowIdx + 1, iConf + 1).setValue(new Date());
 
   srNotifyAdminConfirmed_(email, first, last);
 
-  return HtmlService.createHtmlOutput(
-    '<p>Thank you. Your subscription has been confirmed.</p>'
-  );
+  return HtmlService.createHtmlOutput('<p>Thank you. Your subscription has been confirmed.</p>');
 }
+
 function testPing() {
   return 'pong';
 }
-/** Create or update roster row; set QTC = TRUE. No data ever exposed to public UI. */
+
+/** Create or update roster row; set QTC = TRUE. */
 function srApplyToRoster_(email, info) {
   const ss = SpreadsheetApp.openById(SR_ROSTER_FILE_ID);
   const sh = ss.getSheetByName(SR_ROSTER_SHEET_NAME);
   if (!sh) throw new Error('Roster sheet not found.');
 
-  const vals = sh.getDataRange().getValues();
+  const vals    = sh.getDataRange().getValues();
   const headers = vals[0].map(String);
   const h = {};
-  headers.forEach((name, i) => { if (name) h[name] = i; });
+  headers.forEach(function(name, i){ if (name) h[name] = i; });
 
   const iEmail = h['Email'];
   const iFirst = h['First name'];
@@ -184,7 +218,6 @@ function srApplyToRoster_(email, info) {
     throw new Error('Roster must have "Email" and "QTC" columns.');
   }
 
-  // find existing row
   let rowIdx = -1;
   for (let r = 1; r < vals.length; r++) {
     const em = String(vals[r][iEmail] || '').trim().toLowerCase();
@@ -195,7 +228,6 @@ function srApplyToRoster_(email, info) {
   }
 
   if (rowIdx === -1) {
-    // new record
     const newRow = new Array(headers.length).fill('');
     newRow[iEmail] = email;
     if (iFirst != null) newRow[iFirst] = info.first || '';
@@ -205,18 +237,17 @@ function srApplyToRoster_(email, info) {
     newRow[iQTC] = true;
     sh.appendRow(newRow);
   } else {
-    // update existing
     if (iFirst != null && info.first) vals[rowIdx][iFirst] = info.first;
     if (iLast  != null && info.last)  vals[rowIdx][iLast]  = info.last;
-    if (iPhone != null && info.phone) vals[rowIdx][iPhone] = info.phone;
-    if (iAddr  != null && info.addr)  vals[rowIdx][iAddr]  = info.addr;
+    if (iPhone != null)               vals[rowIdx][iPhone] = info.phone || vals[rowIdx][iPhone];
+    if (iAddr  != null)               vals[rowIdx][iAddr]  = info.addr  || vals[rowIdx][iAddr];
     vals[rowIdx][iQTC] = true;
     sh.getRange(rowIdx + 1, 1, 1, headers.length).setValues([vals[rowIdx]]);
   }
 
-  // === Sort roster: Last name, First name, Email ===
+  // Sort roster: Last name, First name, Email (if present)
   const sortSpecs = [];
-  if (iLast  != null) sortSpecs.push({ column: iLast + 1,  ascending: true });
+  if (iLast  != null) sortSpecs.push({ column: iLast  + 1, ascending: true });
   if (iFirst != null) sortSpecs.push({ column: iFirst + 1, ascending: true });
   sortSpecs.push({ column: iEmail + 1, ascending: true });
 
@@ -226,10 +257,10 @@ function srApplyToRoster_(email, info) {
   }
 }
 
-/** Ensure PendingSelfRegistrations sheet exists in the roster file */
+/** Ensure PendingSelfRegistrations sheet exists */
 function srGetOrCreatePendingSheet_() {
   const ss = SpreadsheetApp.openById(SR_ROSTER_FILE_ID);
-  let sh = ss.getSheetByName(SR_PENDING_SHEET_NAME);
+  let sh   = ss.getSheetByName(SR_PENDING_SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SR_PENDING_SHEET_NAME);
     sh.appendRow([
@@ -256,7 +287,7 @@ function srGenerateToken_() {
 
 /** Send confirmation email to requester */
 function srSendConfirmEmail_(email, token) {
-  const url = ScriptApp.getService().getUrl();
+  const url  = ScriptApp.getService().getUrl();
   const link = url + '?confirm=' + encodeURIComponent(token);
 
   const body =
@@ -268,12 +299,15 @@ function srSendConfirmEmail_(email, token) {
     'In Friendship,\n' +
     SR_FROM_NAME + '\n';
 
-  GmailApp.sendEmail(email, 'Confirm your subscription to Midlothian Friends news', body, {
-    name: SR_FROM_NAME
-  });
+  GmailApp.sendEmail(
+    email,
+    'Confirm your subscription to Midlothian Friends news',
+    body,
+    { name: SR_FROM_NAME }
+  );
 }
 
-/** Notify clerk/admin of pending request (structured JSON in body) */
+/** Notify clerk/admin of pending request */
 function srNotifyAdminPending_(email, first, last, phone, addr, token, when) {
   if (!SR_ADMIN_EMAIL) return;
 
@@ -292,9 +326,12 @@ function srNotifyAdminPending_(email, first, last, phone, addr, token, when) {
     'A new newsletter subscription request has been received.\n\n' +
     JSON.stringify(payload, null, 2) + '\n';
 
-  GmailApp.sendEmail(SR_ADMIN_EMAIL, '[MFM-News] Pending subscription', body, {
-    name: SR_FROM_NAME
-  });
+  GmailApp.sendEmail(
+    SR_ADMIN_EMAIL,
+    '[MFM-News] Pending subscription',
+    body,
+    { name: SR_FROM_NAME }
+  );
 }
 
 /** Notify clerk/admin when confirmed & applied */
@@ -312,7 +349,11 @@ function srNotifyAdminConfirmed_(email, first, last) {
     'A subscription has been confirmed and applied to the roster.\n\n' +
     JSON.stringify(payload, null, 2) + '\n';
 
-  GmailApp.sendEmail(SR_ADMIN_EMAIL, '[MFM-News] Subscription confirmed', body, {
-    name: SR_FROM_NAME
-  });
+  GmailApp.sendEmail(
+    SR_ADMIN_EMAIL,
+    '[MFM-News] Subscription confirmed',
+    body,
+    { name: SR_FROM_NAME }
+  );
 }
+// End ChatGPT code block 2025-11-12 22:40 EST
