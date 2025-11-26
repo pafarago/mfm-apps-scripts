@@ -1,0 +1,465 @@
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --accent-green: #2e7d32;
+        --accent-red: #c62828;
+        --border: #000;
+        --muted: #666;
+        --btn-bg: #f5f5f5;
+        --btn-border: #999;
+        --btn-active: #2e7d32;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        background: #fff;
+      }
+
+      .container {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin: clamp(8px, 4vw, 24px);
+        padding: clamp(12px, 3vw, 24px);
+        max-width: 780px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: clamp(12px, 3vw, 20px);
+      }
+
+      .header img {
+        height: clamp(60px, 15vw, 120px);
+        width: auto;
+      }
+
+      .title {
+        font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+        font-weight: 600;
+        margin-top: 8px;
+      }
+
+      .title-line {
+        border-bottom: 1px solid #000;
+        margin: 8px auto 16px auto;
+        width: 95%;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px 16px;
+        align-items: center;
+      }
+
+      .btn {
+        border: 1px solid var(--btn-border);
+        background: var(--btn-bg);
+        padding: clamp(8px, 2vw, 12px);
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        width: 100%;
+        text-align: center;
+        font-size: clamp(0.9rem, 2.5vw, 1rem);
+      }
+
+      .btn.running {
+        background: var(--btn-active);
+        color: #fff;
+        border-color: var(--btn-active);
+      }
+
+      .btn:disabled {
+        background: #e0e0e0;
+        border-color: #bbb;
+        color: #999;
+        cursor: not-allowed;
+      }
+
+      .mark {
+        margin-left: 8px;
+        font-family: monospace;
+        font-size: clamp(1rem, 2.5vw, 1.2rem);
+      }
+
+      .mark.ok::before {
+        content: "";
+        color: var(--accent-green);
+      }
+
+      .mark.fail::before {
+        content: "";
+        color: var(--accent-red);
+      }
+
+      .mark.running::before {
+        content: "";
+        color: var(--muted);
+      }
+      /* Toast inside properties grid */
+      .toast {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-top: 8px;
+        font-size: clamp(0.9rem, 2.5vw, 1rem);
+        background: #f9f9f9;
+      }
+      .toast.success { border-color: var(--accent-green); }
+      .toast.error   { border-color: var(--accent-red); }
+      .toast.show    { display: block; }
+      .toast.hide    { display: none; }
+
+    /* Button area: 3-column layout */
+    .grid.buttons {
+      display: grid;
+      grid-template-columns: 1fr 4fr 1fr; /* narrow spacer, wide button column, narrow marks */
+      gap: 8px 12px;
+      align-items: center;
+    }
+
+    /* Buttons centered in column 2 */
+    .grid.buttons .btn {
+      justify-self: center;
+      width: 100%; /* fill the middle column */
+    }
+
+    /* Marks in column 3, left-aligned with margin */
+    .grid.buttons .mark {
+      justify-self: start;
+      margin-left: 6px;
+    }
+
+    /* Properties area: 2-column layout */
+    .grid.props {
+      display: grid;
+      grid-template-columns: 1fr 2fr; /* 1/3 labels, 2/3 values */
+      gap: 8px 12px;
+      align-items: center;
+    }
+
+    /* Optional: label emphasis */
+    .grid.props > div:nth-child(odd) {
+      font-weight: 600;
+    }
+
+    .counter-box {
+      display: inline-block;
+      min-width: 6ch;
+      text-align: center;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-family: monospace;
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
+    }
+    .section-separator {
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+.modal.hide { display: none; }
+.modal {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;
+}
+.modal-content {
+  background: #fff; padding: 20px; border-radius: 8px; max-width: 400px; text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.modal-buttons { margin-top: 16px; display: flex; justify-content: space-around; }
+    </style>
+ 
+    <div class="container">
+      <div class="header">
+        <img src="https://midlothianfriends.freeddns.org/logo.png" alt="Logo">
+        <div class="title">Email Merge Dashboard</div>
+        <div class="title-line"></div>
+      </div>
+      <!-- Buttons grid -->
+      <!-- Button grid: 3 columns -->
+      <div class="grid buttons">
+        <div></div>
+        <button id="btn-access" class="btn" onclick="runAction('checkAccess')">Check Access</button>
+        <div id="mark-access" class="mark"></div>
+<!--
+        <div></div>
+        <button id="btn-logout" class="btn" onclick="runAction('logOut')">Log Out</button>
+        <div id="mark-logout" class="mark"></div>
+-->
+        <div></div>
+        <button id="btn-edit-template" class="btn" onclick="openTemplate()">Edit Email Template</button>
+        <div id="mark-edit-template" class="mark"></div>
+
+        <div></div>
+        <button id="btn-validate" class="btn" onclick="runAction('menuValidateTemplate')">Validate Template</button>
+        <div id="mark-validate" class="mark"></div>
+
+        <div></div>
+        <button id="btn-reset" class="btn" onclick="runAction('menuRefreshMailingList')">Refresh Mailing List</button>
+        <div id="mark-reset" class="mark"></div>
+
+        <div></div>
+        <button id="btn-preview" class="btn" onclick="runAction('menuPreview')">Preview</button>
+        <div id="mark-preview" class="mark"></div>
+
+      <div></div>
+        <button id="btn-send" class="btn" onclick="confirmSendAll()">Send All</button>
+        <div id="mark-send" class="mark"></div>
+
+      </div>
+
+      <!-- Separator -->
+      <div class="section-separator"></div>
+
+      <!-- Properties grid: 2 columns -->
+      <div class="grid props">
+        
+        <div>Current user:</div>
+        <div id="merge-user"></div>
+
+        <div>Remaining quota:</div>
+        <div><span id="merge-quota" class="counter-box">0000</span></div>
+
+        <div>Mailing list count:</div>
+        <div><span id="merge-list-count" class="counter-box">0000</span></div>
+
+        <div>Sent:</div>
+        <div><span id="merge-sent" class="counter-box">0000</span></div>
+
+        <div>Remaining:</div>
+        <div><span id="merge-remaining" class="counter-box">0000</span></div>
+
+        <div>State:</div>
+        <div id="merge-state"></div>
+
+        <div>Start Time:</div>
+        <div id="merge-start"></div>
+
+        <div>Last sent:</div>
+        <div id="merge-last-sent"></div>
+
+        <div>Next Resume:</div>
+        <div id="merge-next-resume"></div>
+
+        <div>Dashboard message:</div>
+        <div>
+          <div id="toast" class="toast hide">
+            <div id="toast-body"></div>
+          </div>
+        </div>
+      </div>
+
+    <!-- Place modal here, outside the container -->
+    <div id="confirm-modal" class="modal hide">
+      <div class="modal-content">
+        <p id="confirm-text">Are you sure you want to send ALL messages now?</p>
+        <div class="modal-buttons">
+          <button id="confirm-ok" class="btn">OK</button>
+          <button id="confirm-cancel" class="btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      const POLL_MS = 5000;
+      const ACTIONS = {
+        checkAccess:{btn:'btn-access',mark:'mark-access',errorKey:'accessError'},
+        menuValidateTemplate:{btn:'btn-validate',mark:'mark-validate',errorKey:'validationError'},
+        menuRefreshMailingList:{btn:'btn-reset',mark:'mark-reset',errorKey:'resetError'},
+        menuPreview:{btn:'btn-preview',mark:'mark-preview',errorKey:'previewError'},
+        menuSendAll:{btn:'btn-send',mark:'mark-send',errorKey:'sendError'}  
+      };
+      let isRunning=false;
+      const toastEl=document.getElementById('toast');
+      const toastBody=document.getElementById('toast-body');
+      let toastTimer=null;
+      function confirmSendAll() {
+        // Grab the mailing list count from your dashboard
+        const listCountEl = document.getElementById('merge-list-count');
+        const count = listCountEl ? listCountEl.textContent : '0';
+
+        // Update modal text with the number of emails
+        const confirmText = document.getElementById('confirm-text');
+        confirmText.textContent = `Are you sure you want to send ALL ${count} emails now?`;
+
+        // Show modal
+        const modal = document.getElementById('confirm-modal');
+        modal.classList.remove('hide');
+
+        // Wire up buttons
+        document.getElementById('confirm-ok').onclick = function() {
+          modal.classList.add('hide');
+          runAction('menuSendAll'); // proceed with send
+        };
+        document.getElementById('confirm-cancel').onclick = function() {
+          modal.classList.add('hide'); // just close
+        };
+      }
+      function showToast(msg,type='success',duration=10000){
+        toastEl.className='toast '+type+' show';
+        toastBody.textContent=msg;
+        if(toastTimer)clearTimeout(toastTimer);
+        toastTimer=setTimeout(hideToast,duration);
+      }
+      function hideToast(){
+        toastEl.classList.remove('show');
+        if(toastTimer){clearTimeout(toastTimer);toastTimer=null;}
+      }
+      toastEl.addEventListener('click',hideToast);
+
+      function chirp(){
+        try{
+          const ctx=new(window.AudioContext||window.webkitAudioContext)();
+          const osc=ctx.createOscillator();
+          const gain=ctx.createGain();
+          osc.type='square';
+          osc.frequency.setValueAtTime(220,ctx.currentTime);
+          gain.gain.setValueAtTime(0.02,ctx.currentTime);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start();
+          setTimeout(()=>{osc.stop();ctx.close();},180);
+        }catch(e){}
+      }
+
+    function setButtonsRunning(actionKey, running) {
+      isRunning = running;
+      Object.keys(ACTIONS).forEach(k => {
+        const btn = document.getElementById(ACTIONS[k].btn);
+        if (running) {
+          btn.disabled = (k !== actionKey);  // disable others
+          btn.classList.toggle('running', k === actionKey);
+        } else {
+          btn.disabled = false;              // re-enable all
+          btn.classList.remove('running');
+        }
+      });
+    }   
+
+      document.addEventListener('click',ev=>{
+        if(ev.target.classList.contains('btn')&&ev.target.disabled){
+          chirp();
+          ev.stopPropagation();
+          ev.preventDefault();
+        }
+      },true);
+
+      function setMark(actionKey, ok) {
+        const markId = ACTIONS[actionKey].mark;
+        const el = document.getElementById(markId);
+        el.classList.remove('ok','fail','running');
+        if (ok === true) {
+          el.classList.add('ok');      // ✔
+          el.textContent = "✅";
+        } else if (ok === false) {
+          el.classList.add('fail');    // ✖
+          el.texctContent = "❌ "
+        } else {
+          el.classList.add('running'); // ...
+          el.textContent = "⚡"  
+        }
+      }
+
+      // All server-side menu functions return { status: true } on success
+      // or { status: false, msg: <string> } on failure.
+
+      function runAction(actionKey){
+        if(isRunning){chirp();return;}
+        const action=ACTIONS[actionKey];
+        if(!action)return;
+        setButtonsRunning(actionKey,true);
+        setMark(actionKey,null); // show "..." while running
+        google.script.run
+          .withSuccessHandler(function(result){
+            if (result.status === true) {
+              setMark(actionKey,true);   // ✔
+            } else {
+              setMark(actionKey,false);  // ✖
+              showToast(result.msg || (actionKey + ' failed'), 'error', 10000);
+            }
+            setButtonsRunning(actionKey,false);
+
+            // 🔑 Immediately poll and update dashboard
+            pollOnce(function(props){
+              updateMergeInfo(props);
+            });
+          })
+          .withFailureHandler(function(err){
+            setMark(actionKey,false);    // ✖
+            showToast((err && err.message) || (actionKey + ' failed'), 'error', 10000);
+            setButtonsRunning(actionKey,false);
+
+            // 🔑 Even on failure, refresh dashboard state
+            pollOnce(function(props){
+              updateMergeInfo(props);
+            });
+          })[actionKey]();
+      }
+
+
+        function updateMergeInfo(props) {
+
+          // Daily quota
+          const quotaEl = document.getElementById('merge-quota');
+          if (quotaEl) quotaEl.textContent = String(props.remainingDailyQuota || 0).padStart(4, '0');
+
+          // Remaining to send
+          const remainingEl = document.getElementById('merge-remaining');
+          if (remainingEl) remainingEl.textContent = String(props.remainingToSend || 0).padStart(4, '0');
+
+          // Sent count
+          const sentEl = document.getElementById('merge-sent');
+          if (sentEl) sentEl.textContent = String(props.sent || 0).padStart(4, '0');
+
+          // List count
+          const listCountEl = document.getElementById('merge-list-count');
+          if (listCountEl) listCountEl.textContent = String(props.listCount || 0).padStart(4, '0');
+
+          // State
+          const stateEl = document.getElementById('merge-state');
+          if (stateEl) stateEl.textContent = props.state || 'Idle';
+
+          // Start timestamp
+          const startEl = document.getElementById('merge-start');
+          if (startEl) startEl.textContent = props.timestampStart || '';
+
+          // End timestamp
+          const endEl = document.getElementById('merge-last-sent');
+          if (endEl) endEl.textContent = props.timestampLast || ''; // use timestampLast from getMergeInfo
+
+          // Current user
+          const userEl = document.getElementById('merge-user');
+          if (userEl) userEl.textContent = props.currentUser || '(none)';
+
+          // Next resume time
+          const resumeEl = document.getElementById('merge-next-resume');
+          if (resumeEl) resumeEl.textContent = props.nextResume || '';
+        }
+
+
+
+      function openTemplate() {
+        google.script.run.withSuccessHandler(function(docId) {
+          const url = 'https://docs.google.com/document/d/' + docId + '/edit';
+          window.open(url, '_blank');
+        }).getDocTemplateId();
+      }
+
+
+      function pollOnce(cb){
+        google.script.run.withSuccessHandler(function(props){
+          updateMergeInfo(props);
+          if(cb)cb(props);
+        }).getMergeInfo();
+      }
+      function poll(){ pollOnce(); }
+      setInterval(poll,POLL_MS);
+      poll();
+    </script>
+ 
