@@ -13,7 +13,26 @@ function checkAccess() {
 }
 
 function getMergeInfo() {
+  let elapsedTime;
   const props = PropertiesService.getScriptProperties().getProperties();
+  if (props.pauseStart) {
+    const now = new Date();
+    const elapsedMs = now.getTime() - Number(props.pauseStart);
+
+    const hours = Math.floor(elapsedMs / 3600000);
+    const minutes = Math.floor((elapsedMs % 3600000) / 60000);
+    const seconds = Math.floor((elapsedMs % 60000) / 1000);
+    const millis = elapsedMs % 1000;
+
+    elapsedTime = Utilities.formatString(
+      "%02d:%02d:%02d.%03d",
+      hours, minutes, seconds, millis
+    );
+  }
+  else {
+    elapsedTime = '00:00:00.000';
+  }
+
   return {
     currentUser: props.currentUser || '',
     remainingDailyQuota: props.remainingDailyQuota || '0',
@@ -24,7 +43,8 @@ function getMergeInfo() {
     timestampLast: props.timestampLast || '',
     restartPending: props.restartPending || 'No',
     state: props.state || 'Idle',
-    nextResume: props.nextResume || ''
+    nextResume: props.nextResume || '',
+    elapsedTime: elapsedTime || '',
   };
 }
 
@@ -112,7 +132,18 @@ function eventStateLog(state, msg) {
   const cfg = getConfig_();
   const sheet = cfg.ss.getSheetByName('eventStateLog');
   const stamp = timeStamp();
-  PropertiesService.getScriptProperties().setProperty('state', state);
+  if (state !== false) {
+  let m;
+  if (state === 'Paused' || state === 'Quota') {
+    m = Date.now(); // current timestamp in ms
+    PropertiesService.getScriptProperties().setProperty('pauseStart', String(m));
+  } else {
+    PropertiesService.getScriptProperties().deleteProperty('pauseStart');
+  }
+  PropertiesService.getScriptProperties().setProperty( 'state', state);
+   } else {
+    state = 'Info';
+  }
   sheet.appendRow([ stamp, state, msg || "", cfg.SENDER_EMAIL ]);
 }
 

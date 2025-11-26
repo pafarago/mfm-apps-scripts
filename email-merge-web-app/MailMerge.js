@@ -278,7 +278,7 @@ function menuRefreshMailingList() {
       'Status',
       'Timestamp'
     ];
-
+    clearResumeTriggers();
     cfg.ml.getRange(1, 1, 1, headersOut.length).setValues([headersOut]);
 
     if (out.length) {
@@ -293,9 +293,11 @@ function menuRefreshMailingList() {
         listCount: String(listCount ?? 0),
         sent: String(0),
         remainingToSend: String(listCount ?? 0),
-        restartPending: restartPending,
+        state: 'Refreshed',
         timestampStart: '',
-        timestampLast: ''
+        timestampLast: '',
+        restartPending: restartPending,
+        nextResume: ''
     }
     props.setProperties(update);
     return { status: true };
@@ -309,10 +311,68 @@ function menuRefreshMailingList() {
 function menuSendAll(type) {
   // if type = true activated by time-based trigger
   // if type = false activated by human on dashboard
-  Counters.init(20); // start elapsed time as early as possible
-  PropertiesService.getScriptProperties().setProperty('timestampStart', Counters.timestampStart);
+  /**
+   * States:
+   * Complete - The previous mailing to the MFM was completed
+   * Validated- The email template has been successfully validated
+   * Refreshed- The mailing list has been refreshed
+   * Ready    - Template has been validated, and the mailing list has been refreshed. Ready to start mail merge.
+   * Running  - The mail merge process is running
+   * Paused   - The mail merge processing is waiting for permission to continue from Google. It will restart automatically in about a minute
+   * Quota    - The script has reach the daily quota limit. It will take about 24 to restart fromthe "Last sent" time on the dashboard.
+   * Error    - An unexpected error occured during processing. Contact Peter. 
+   * 
+   * type = false means the request was initiated from the Dashboard at the start. True means is automated restart.                  
+   */
+
   checkAccess();
+  Counters.init(20); // start elapsed time as early as possible
   const cfg = getConfig_(); //several seconds since this is the first time
+  props = PropertiesService.getScriptProperties();
+  state = props.getProperty('state');
+  let pendingTrigger = hasTrigger();
+  let msg;
+
+
+  if(pendingTrigger === false && (state === 'Paused' || state === 'Quota')) {
+	msg = 'state: ' + state + ' is not expected without a pending automated restart.';
+	eventStateLog(false, msg);
+	return({ status: 'false' , msg: msg});
+  }
+
+  if(pendingTrigger === true && (state !== 'Paused' && state !== 'Quota')) {
+	msg = 'state: ' + state + ' is not expection with a pending automated restart.';
+	eventStateLog(false, msg);
+	return({ status: 'false' , msg: msg });
+  }
+
+  const timeCol = cfg.headers.indexOf('Timestamp');
+  if((cfg.mirrorBuffer[1][timeCol] === '' || cfg.mirrorBuffer[1][timeCol] == null) && type === true) {
+        msg = 'state: ' + state + 'An automated resart on a newly loaded mailing list is not permitted';
+        eventStateLog(false, msg);
+	return({ status: 'false' , msg: msg });
+  }
+
+  if(type === 'true' && (state !== 'Paused' && state !== 'Quota')) {
+        msg = 'state: ' + state + 'An automated resart is not permitted in this state';
+        eventStateLog(false, msg);
+	return({ status: 'false' , msg: msg });
+  }
+
+  if(type === 'false' && (state === 'Paused' || state === 'Quota')) {
+        msg = 'state: ' + state + ' Dashboard activated startup not permitted in this state';
+        eventStateLog(false, msg);
+	return({ status: 'false' , msg: msg });
+  }
+
+  remainingToSend = remainingToSend_();
+  if(remainingToSend == 0) {
+        msg = 'state: ' + state + ' There aren\'t any emails queued for dispatch.';
+        eventStateLog(false, msg);
+	return({ status: 'false' , msg: msg });
+  }
+
+  PropertiesService.getScriptProperties().setProperty('timestampStart', Counters.timestampStart);
   clearResumeTriggers();
   
   try{
@@ -325,39 +385,39 @@ function menuSendAll(type) {
   
     for (const [i, row] of cfg.mirrorBuffer.entries()) {
       if ( i === 0 ) continue;
+      if(row[sendCol] !== 'TRUE') continue;
+
       const props = PropertiesService.getScriptProperties().getProperties();
       if (props.stopSend === 'true') {
-        Counters.breakReason = "STOP";
         Counters.flush();
-        break;
+        msg = "A request to stop displatching emails have been receievd.";
+        eventStateLog('Stopped', msg);
+        return { status: true, msg: msg };
       }
       if((Date.now() - Counters.startTime) > ((5 * 60 + 30 )* 1000)) { 
-        Counters.breakReason = 'TIME';
         Counters.flush();
-        break;
+        setResumeType('Paused');
+        scheduleResumeMenuSendAll(60 * 1000)
+        msg = 'A short pause is required. An automated restart will begin in about one minute';
+        eventStateLog("Paused", msg);
+        return { status: true , msg: msg };
       }
       if(sent >= cfg.BATCH_LIMIT) { 
-        Counters.breakReason = "BATCH"; 
         Counters.flush();
-        break;
+        setResumeType('Paused');
+        scheduleResumeMenuSendAll(60 * 1000)
+        msg = 'The processing of the current batch is complete. Processing of the next batch will begin in about one minute';
+        eventStateLog("Paused", msg);
+        return { status: true , msg: msg };
       }
-
       if(Counters.estQuota < 5) {
-        Counters.breakReason = 'QUOTA';
         Counters.flush();
-        break;
+        setResumeType('Quota');
+        scheduleResumeMenuSendAll(60 * 60 * 1000);
+        msg = 'The daily email quota has been depleted. An automated restart has been scheduled one hour from now';
+        eventStateLog("Quota", msg);
+        return { status: true, msg: msg } ;
       }
-      // Guard clause: prevent restart from starting a fresh mailing list
-      if (type === true && i === 1) {
-        const firstStamp = row[timeCol];
-        if (!firstStamp) {
-          // No timestamp in first row → fresh list
-          Counters.breakReason = 'PROHIBITED_RESTART';
-          Counters.flush();
-          break; // exit loop, do not send
-        }
-      }
-      if(row[sendCol] !== 'TRUE') continue;
       const to = String(row[emailCol] || '').trim();
       const data   = rowToObject_(cfg.headers, row); // convert array → object
       const merged = renderDocToBlobs_(data); // pass row or object
@@ -380,34 +440,17 @@ function menuSendAll(type) {
         row[sendCol]   = 'FALSE';
       } else {
         sendOneState = false;
-        break;
+        msg = 'An unexpected error occurred while sending an email. Procssing will restart after review.';
+        eventStateLog("Error", msg);
+        return { status: false, msg: msg };
       }
     }
 
     Counters.flush();
     flushBuffers_(cfg);
-    if (Counters.breakReason === 'QUOTA') {
-      setResumeType('Quota');
-      scheduleResumeMenuSendAll(60 * 60 * 1000);
-      eventStateLog("Quota");
-      return { status: true };
-    } else if(Counters.breakReason === 'STOP') {
-      eventStateLog('Stop Requested');
-      return { status: true };
-    } else if(Counters.breakReason === 'PROHIBITED_RESTART') {
-      eventStateLog("Error", "Restart attempt on a new list");
-      return { status: false, msg: "Restart attempt a new list" };
-    } else if (Counters.breakReason === 'TIME' || Counters.breakReason === 'BATCH') {
-      setResumeType('Paused');
-      scheduleResumeMenuSendAll(60 * 1000)
-      eventStateLog("Paused", "");
-      return { status: true };
-    } else if (sendOneState === false) {
-      eventStateLog("Error", "sendOne failed");
-      return { status: false, msg: "sendOne failed" };
-    } else {
-      return { status: true };
-    }
+    msg = 'All emails in the mailing list have been dispatched';
+    eventStateLog("Complete", msg);
+    return { status: true , msg: msg };
   } catch (err) {
     flushBuffers_(cfg);
     eventStateLog("Failure", err.message);
