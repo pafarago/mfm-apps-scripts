@@ -6,7 +6,7 @@ function logAudit_({action, recipient, result, cfg}) {
     action,
     recipient,
     result,
-    GmailApp.getRemainingDailyQuota(),
+    getRemainingDailyQuota(),
     cfg.SUBJECT,
     cfg.PREPARED_BY
   ]);

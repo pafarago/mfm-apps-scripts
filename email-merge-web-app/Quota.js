@@ -1,3 +1,3 @@
-function getRemainingQuota() {
+function getRealQuota() {
   Logger.log(MailApp.getRemainingDailyQuota());
 }

@@ -4,16 +4,16 @@ const Counters = {
   estQuota: 0,
   batchSize: 20,
   startTime: 0,
-  breakReason: 'NOTSET',
+  testingMode: '',
 
   init(n) {
     const props = PropertiesService.getScriptProperties().getProperties();
     this.sent = Number(props.sent) || 0;
-    this.remainingToSend = Number(props.remainingToSend) || 0;
-    this.estQuota = MailApp.getRemainingDailyQuota();
+    this.estQuota = getRemainingDailyQuota();
     this.batchSize = n || 20;
     this.startTime = new Date().getTime();
-    this.timestampStart = timeStamp(this.startTime);
+    let result = getTestMode();
+    this.testingMode = result.mode;
   },
 
   bump() {
@@ -28,11 +28,10 @@ const Counters = {
   },
 
   flush() {
-    this.estQuota = MailApp.getRemainingDailyQuota();
+    this.estQuota = getRemainingDailyQuota();
     PropertiesService.getScriptProperties().setProperties({
       sent: String(this.sent),
       remainingToSend: String(this.remainingToSend),
-      remainingDailyQuota: String(this.estQuota),
       timestampLast: timeStamp()
     });
   }

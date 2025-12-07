@@ -8,6 +8,7 @@ function getConfig_() {
   const startTime = Date.now();
 
   const props = PropertiesService.getScriptProperties();
+  let snapShot = props.getProperties();
   const ss = SpreadsheetApp.openById(props.getProperty('SHEET_ID'));
 
   // Cache the Config sheet
@@ -18,14 +19,18 @@ function getConfig_() {
   const cfg = objectFromRows_(values);
 
   // Lock down critical infrastructure
-  cfg.SHEET_ID          = props.getProperty('SHEET_ID');
+  cfg.SHEET_ID          = snapShot.SHEET_ID;
   cfg.ss                = ss;
   cfg.config            = configSheet;
   cfg.ml                = ss.getSheetByName('MailingList'); 
   cfg.audit             = ss.getSheetByName('AuditLog');
-  cfg.DOC_TEMPLATE_ID   = props.getProperty('DOC_TEMPLATE_ID');
-  cfg.ROSTER_FILE_ID    = props.getProperty('ROSTER_FILE_ID');
-  cfg.ROSTER_SHEET_NAME = props.getProperty('ROSTER_SHEET_NAME');
+  cfg.DOC_TEMPLATE_ID   = snapShot.DOC_TEMPLATE_ID;
+  cfg.ROSTER_FILE_ID    = snapShot.ROSTER_FILE_ID;
+  cfg.ROSTER_SHEET_NAME = snapShot.ROSTER_SHEET_NAME;
+  cfg.state             = snapShot.state
+  
+
+
 
   // Defaults
   cfg.LIST_COLUMN       = cfg.LIST_COLUMN || 'QTC';
@@ -44,7 +49,7 @@ function getConfig_() {
   const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
   
   cfg.templateHtmlBody = m ? m[1] : html;
-
+  let anyTriggers = hasTrigger();
   // Mirror buffer + headers
   const mirrorValues = cfg.ml.getDataRange().getDisplayValues();
   cfg.mirrorBuffer   = mirrorValues;        // full 2D array including header
@@ -54,29 +59,40 @@ function getConfig_() {
   const timeCol = cfg.headers.indexOf('Timestamp');
   let remainingToSend = cfg.mirrorBuffer.filter((row, i) => i > 0 && row[sendCol] === 'TRUE').length;
   const listCount = cfg.mirrorBuffer.length - 1;
-  const remainingDailyQuota = MailApp.getRemainingDailyQuota();
-  const restartPending = hasTrigger() ? 'Yes' : 'None';
-  if((cfg.mirrorBuffer[1][timeCol] === '' || cfg.mirrorBuffer[1][timeCol] == null) &&  restartPending == 'Yes') {
-    clearResumeTriggers();
-    Logger.log({time: timestamp(), msg: 'Cleared triggers on entry ' , restartPending: resartPending, listCount: String(listCount), timeCell: cfg.mirrorBuffer[1][timeCol]})
-  }
-
   
-  // Build the properties object
   let update = {
-    currentUser: cfg?.SENDER_EMAIL || '',
-    remainingDailyQuota: String(remainingDailyQuota ?? 0),
-    restartPending: restartPending,
-    listCount: String(listCount),
-    remainingToSend: String(remainingToSend)
-  };
+        currentUser: Session.getActiveUser().getEmail(),
+        listCount: String(listCount),
+        remainingToSend: String(remainingToSend)
+      };
   props.setProperties(update);
+  // New snapShot needed;
+  snapShot = props.getProperties();
+  // Guard against inintended restart
+  if(isRestartOkay(cfg.mirrorBuffer, sendCol, timeCol) === false && hasTrigger() === true) {
+      clearResumeTriggers();
+      if(listCount === remainingToSend) {
+        if(snapShot.timestampStart !== undefined) props.deleteProperty('timestampStart');
+        if(snapShot.timestampLast != undefined) props.deleteProperty('timestampLast');
+      }
+      msg = 'State ' + cfg.state + ' ==> Ready Restart denied in getConfig_()';
+      
+      props.setProperty('state', 'Ready');
+      const sheet = cfg.ss.getSheetByName('eventStateLog');
+      sheet.appendRow([ timeStamp(), state, msg || "", cfg.SENDER_EMAIL ]);
+
+      // Clean up stray properties
+      if(hasTrigger() === false) {
+          if(snapShot.pauseStart !== undefined ) props.deleteProperty('pauseStart');
+          if(snapShot.restartPending !== undefined ) props.deleteProperty('restartPending');
+          if(snapShot.nextResume !== undefined) props.deleteProperty('nextResume');
+          if(snapShot.resumeType !== undefined) props.deleteProperty('resumeType');
+        };
+  }
 
   cfgGlobal = cfg;
   return cfg;
 }
-
-
 /***** DATA ACCESS: MAILING LIST *****/
 /***** HELPERS *****/
 
@@ -170,7 +186,7 @@ function sendOne_({to, subject, htmlBody, plainBody, menu, cfg}) {
   checkAccess();
   try {
     const opts = { name: cfg.SENDER_NAME, htmlBody };
-    GmailApp.sendEmail(to, subject, plainBody, opts);
+    gmailSender(to, subject, plainBody, opts);
     bufferAudit({ action: menu, recipient: to, result: 'Sent' });
     return true;
   } catch (err) {
@@ -284,20 +300,18 @@ function menuRefreshMailingList() {
     if (out.length) {
       cfg.ml.getRange(2, 1, out.length, headersOut.length).setValues(out);
     }
-    const remainingDailyQuota = MailApp.getRemainingDailyQuota();
-    const restartPending = hasTrigger() ? 'Yes' : 'No';
     const listCount = out.length -1;
+    if(hasTrigger()) clearResumeTriggers();
+    snapShot = props.getProperties();
+    ['pauseStart','restartPending','nextResume','resumeType', 'timnestampStart', 'timestampLast'].forEach(key => {
+        if (snapShot[key] !== undefined) props.deleteProperty(key);
+      });
     let update = {
         currentUser: cfg?.SENDER_EMAIL || '',
-        remainingDailyQuota: String(remainingDailyQuota ?? 0),
         listCount: String(listCount ?? 0),
         sent: String(0),
         remainingToSend: String(listCount ?? 0),
-        state: 'Refreshed',
-        timestampStart: '',
-        timestampLast: '',
-        restartPending: restartPending,
-        nextResume: ''
+        state: 'Refreshed'
     }
     props.setProperties(update);
     return { status: true };
@@ -307,80 +321,135 @@ function menuRefreshMailingList() {
 }
 
 // 3) Send all from MailingList (throttled)
+function resumeMenuSendAll() {
+  menuSendAll(true);
+}
+function stopSend() {
+  PropertiesService.getScriptProperties().setProperty('stopSend', timeStamp());
+}
+
+globalValidSendStates = ['Blocked', 'Complete', 'Error', 'Failure', 'Running', 'Idle', 'Paused', 'Quota', 'Ready', 'Refreshed', 'restartFailure', 'Stopped'];
 
 function menuSendAll(type) {
   // if type = true activated by time-based trigger
   // if type = false activated by human on dashboard
   /**
    * States:
-   * Complete - The previous mailing to the MFM was completed
-   * Validated- The email template has been successfully validated
-   * Refreshed- The mailing list has been refreshed
-   * Ready    - Template has been validated, and the mailing list has been refreshed. Ready to start mail merge.
-   * Running  - The mail merge process is running
-   * Paused   - The mail merge processing is waiting for permission to continue from Google. It will restart automatically in about a minute
-   * Quota    - The script has reach the daily quota limit. It will take about 24 to restart fromthe "Last sent" time on the dashboard.
-   * Error    - An unexpected error occured during processing. Contact Peter. 
+   * Blocked        - Active user is not authorized
+   * Complete       - The previous mailing to the MFM was completed
+   * Idle           - Not set
+   * Refreshed      - The mailing list has been refreshed
+   * Ready          - Template has been validated, and the mailing list has been refreshed. Ready to start mail merge.
+   * Running        - The mail merge process is running
+   * Paused         - The mail merge processing is waiting for permission to continue from Google. It will restart automatically in about a minute
+   * Quota          - The script has reach the daily quota limit. It will take about 24 to restart fromthe "Last sent" time on the dashboard.
+   * restartFailure - Trigger setting failure
+   * Failure         - An unexpected error occured during processing. Contact Peter. 
    * 
    * type = false means the request was initiated from the Dashboard at the start. True means is automated restart.                  
    */
+
+  if (PropertiesService.getScriptProperties().getProperty('stopSend')) {
+    msg = "A request to stop dispatching emails have been receievd.";
+    if(eventStateLog('Stopped', msg)) {
+      return {status: true, msg: msg };
+    } else {
+      return { status: false, msg: "eventStateLog failure"};
+    }
+  }
+
+  if(!isAuthorizedUser()) {
+    let msg = Session.getActiveUser().getEmail() + ' is not a authorized sender';
+    if(eventStateLog('Blocked', msg)) {
+      return {status: true, msg: msg };
+    } else {
+      return { status: false, msg: "eventStateLog failure"};
+    }
+  }
+  
+  if(getRemainingDailyQuota() < 5) {
+    result = getTestMode();
+    setResumeType('Quota');
+    let delay,delayMsg;
+    if(result.mode === true) {
+      delay = 3 * 60 * 1000;
+      scheduleResumeMenuSendAll(3 * 60 * 1000); // three minutes
+      testQuotaRefresh(150 *1000); //2.5 minutes
+      delayMsg = "three minutes";
+    } else {
+      delay = 60 * 60 * 1000;
+      scheduleResumeMenuSendAll(60 * 60 * 1000); //one hour
+      delayMsg = "one hour";
+    }
+    msg = `Quota low (${Counters.estQuota}). Restart scheduled in ${delayMsg}.`
+    if(eventStateLog("Quota", msg)) {
+      return { status: true, msg: msg} ;
+    } else {
+        return { status: false, msg: "eventStateLog failure"};
+    }
+  }
 
   checkAccess();
   Counters.init(20); // start elapsed time as early as possible
   const cfg = getConfig_(); //several seconds since this is the first time
   props = PropertiesService.getScriptProperties();
-  state = props.getProperty('state');
-  let pendingTrigger = hasTrigger();
+  let state = props.getProperty('state');
+  let remainingToSend = props.getProperty('remainingToSend');
+  Counters.remainingToSend = remainingToSend; // Synchronoize Counters.remainingToSend
+  let timestampStart = props.getProperty('timestampStart');
   let msg;
 
-
-  if(pendingTrigger === false && (state === 'Paused' || state === 'Quota')) {
-	msg = 'state: ' + state + ' is not expected without a pending automated restart.';
-	eventStateLog(false, msg);
-	return({ status: 'false' , msg: msg});
+  //Restart criteria checked in getConfig_()
+  if(type === true && state !== 'Paused' && state !== 'Quota') {
+    msg = 'state: ' + state + ' Re-starts are permitted only in validated Paused and Quota states.';
+	 eventStateLog(null, msg);
+   return({ status: 'false' , msg: msg });
   }
 
-  if(pendingTrigger === true && (state !== 'Paused' && state !== 'Quota')) {
-	msg = 'state: ' + state + ' is not expection with a pending automated restart.';
-	eventStateLog(false, msg);
-	return({ status: 'false' , msg: msg });
-  }
-
-  const timeCol = cfg.headers.indexOf('Timestamp');
-  if((cfg.mirrorBuffer[1][timeCol] === '' || cfg.mirrorBuffer[1][timeCol] == null) && type === true) {
-        msg = 'state: ' + state + 'An automated resart on a newly loaded mailing list is not permitted';
-        eventStateLog(false, msg);
-	return({ status: 'false' , msg: msg });
-  }
-
-  if(type === 'true' && (state !== 'Paused' && state !== 'Quota')) {
-        msg = 'state: ' + state + 'An automated resart is not permitted in this state';
-        eventStateLog(false, msg);
-	return({ status: 'false' , msg: msg });
-  }
+  const emailCol  = cfg.headers.indexOf('Email');
+  const sendCol   = cfg.headers.indexOf('Send?');
+  const statusCol = cfg.headers.indexOf('Status');
+  const timeCol   = cfg.headers.indexOf('Timestamp');
 
   if(type === 'false' && (state === 'Paused' || state === 'Quota')) {
         msg = 'state: ' + state + ' Dashboard activated startup not permitted in this state';
-        eventStateLog(false, msg);
-	return({ status: 'false' , msg: msg });
+        if(eventStateLog('Ready', msg)) {
+          return({ status: 'false' , msg: msg });
+        } else {
+	        return { status: false, msg: "eventStateLog failure"};
+        }
   }
 
-  remainingToSend = remainingToSend_();
   if(remainingToSend == 0) {
         msg = 'state: ' + state + ' There aren\'t any emails queued for dispatch.';
-        eventStateLog(false, msg);
-	return({ status: 'false' , msg: msg });
+        eventStateLog(null, msg);
+	      return({ status: 'false' , msg: msg });
   }
 
-  PropertiesService.getScriptProperties().setProperty('timestampStart', Counters.timestampStart);
+  // timestampStart is cleared on mailing list refresh or manual restart after stopSend and set here
+  if((remainingToSend === listCount || state === 'Ready' || state === 'Refreshed')) {
+    props.setProperty('timestampStart', timeStamp());
+  }
   clearResumeTriggers();
+  snapShot = props.getProperties();
+  ['pauseStart','restartPending','nextResume','resumeType'].forEach(key => {
+        if (snapShot[key] !== undefined) props.deleteProperty(key);
+      });
   
-  try{
+  if(type === true) {
+    msg = "Re-entry State =" + state + ' => '+ 'Running';
+    if(!eventStateLog('Running', msg)) {
+      return { status: false, msg: "eventStateLog failure"};
+    }
+  } else {
+   msg = "Startup State =" + state + ' => '+ 'Running';
+    if(!eventStateLog('Running', msg)) {
+      return { status: false, msg: "eventStateLog failure"};
+    } 
+  }
+
+  try {
     let sent = 0;
-    const emailCol  = cfg.headers.indexOf('Email');
-    const sendCol   = cfg.headers.indexOf('Send?');
-    const statusCol = cfg.headers.indexOf('Status');
-    const timeCol   = cfg.headers.indexOf('Timestamp');
     let sendOneState = true;
   
     for (const [i, row] of cfg.mirrorBuffer.entries()) {
@@ -388,35 +457,85 @@ function menuSendAll(type) {
       if(row[sendCol] !== 'TRUE') continue;
 
       const props = PropertiesService.getScriptProperties().getProperties();
-      if (props.stopSend === 'true') {
+      if (props.stopSend) {
         Counters.flush();
-        msg = "A request to stop displatching emails have been receievd.";
-        eventStateLog('Stopped', msg);
-        return { status: true, msg: msg };
+        flushBuffers_(cfg);
+        msg = "A request to stop dispatching emails have been receievd.";
+        if(eventStateLog('Stopped', msg)) {
+          return { status: true, msg: msg };
+        } else {
+          return { status: false, msg: "eventStateLog failure"};
+        }   
       }
-      if((Date.now() - Counters.startTime) > ((5 * 60 + 30 )* 1000)) { 
+      let maxTime = (5 * 60 + 30 )* 1000;  // 330 seconds (5.5 minutes)
+      if(Counters.testingMode === true) { maxTime = (60 + 30 )* 1000;} // 90 seconds (1.5 minutes)
+      if((Date.now() - Counters.startTime) > maxTime) { 
         Counters.flush();
+        flushBuffers_(cfg);
         setResumeType('Paused');
-        scheduleResumeMenuSendAll(60 * 1000)
-        msg = 'A short pause is required. An automated restart will begin in about one minute';
-        eventStateLog("Paused", msg);
-        return { status: true , msg: msg };
+        if(scheduleResumeMenuSendAll(60 * 1000)) {
+          msg = 'A short pause is required. An automated restart will begin in about one minute';
+          if(eventStateLog("Paused", msg)) {
+            return { status: true , msg: msg };
+          } else {
+            return { status: false, msg: "eventStateLog failure"};
+          }
+        }
+        msg = 'An automated restart could not be set';
+        if(eventStateLog("restartFailure", msg)) {
+            return { status: false , msg: msg };
+        } else {
+          return { status: false, msg: "eventStateLog failure"};
+        }
       }
       if(sent >= cfg.BATCH_LIMIT) { 
         Counters.flush();
+        flushBuffers_(cfg);
         setResumeType('Paused');
-        scheduleResumeMenuSendAll(60 * 1000)
-        msg = 'The processing of the current batch is complete. Processing of the next batch will begin in about one minute';
-        eventStateLog("Paused", msg);
-        return { status: true , msg: msg };
+        if(scheduleResumeMenuSendAll(60 * 1000)) {
+          msg = 'A short pause is required. An automated restart will begin in about one minute';
+          if(eventStateLog("Paused", msg)) {
+            return { status: true , msg: msg };
+          } else {
+            return { status: false, msg: "eventStateLog failure"};
+          }  
+        }
+        msg = 'An automated restart could not be set';
+        if(eventStateLog("restartFailure", msg)) {
+            return { status: false, msg: msg };
+        } else {
+          return { status: false, msg: "eventStateLog failure"};
+        }
       }
       if(Counters.estQuota < 5) {
         Counters.flush();
+        flushBuffers_(cfg);
         setResumeType('Quota');
-        scheduleResumeMenuSendAll(60 * 60 * 1000);
-        msg = 'The daily email quota has been depleted. An automated restart has been scheduled one hour from now';
-        eventStateLog("Quota", msg);
-        return { status: true, msg: msg } ;
+        
+        let delay,delayMsg;
+        if(Counters.testingMode === true) {
+          delay = 3 * 60 * 1000;
+          delayMsg = "three minutes";
+        } else {
+          delay = 60 * 60 * 1000;
+          delayMsg = "one hour";
+        }
+        if(scheduleResumeMenuSendAll(delay)) {
+            if(Counters.testingMode === true) {testQuotaRefresh(150 *1000);} //2.5 minutes
+            msg = `Quota low (${Counters.estQuota}). Restart scheduled in ${delayMsg}.`
+            if(eventStateLog("Quota", msg)) {
+              return { status: true, msg: msg};
+            } else {
+              return { status: false, msg: "eventStateLog failure"};
+            }  
+        } else {
+            msg = 'An automated restart could not be set';
+            if(eventStateLog("restartFailure", msg)) {
+              return { status: false , msg: msg }
+            } else {
+              return { status: false, msg: "eventStateLog failure"};
+            }
+          }
       }
       const to = String(row[emailCol] || '').trim();
       const data   = rowToObject_(cfg.headers, row); // convert array → object
@@ -440,21 +559,32 @@ function menuSendAll(type) {
         row[sendCol]   = 'FALSE';
       } else {
         sendOneState = false;
-        msg = 'An unexpected error occurred while sending an email. Procssing will restart after review.';
-        eventStateLog("Error", msg);
-        return { status: false, msg: msg };
+        Counters.flush();
+        flushBuffers_(cfg);
+        msg = 'An unexpected error occurred while sending an email. Processing will restart after review.';
+        if(eventStateLog("Error", msg)) {
+          return { status: false, msg: msg };
+        } else {
+          return { status: false, msg: "eventStateLog failure"};
+        }    
       }
     }
 
     Counters.flush();
     flushBuffers_(cfg);
     msg = 'All emails in the mailing list have been dispatched';
-    eventStateLog("Complete", msg);
-    return { status: true , msg: msg };
+    if(eventStateLog("Complete", msg)) {
+      return { status: true , msg: msg };
+    } else {
+      return { status: false, msg: "eventStateLog failure"};
+    }
   } catch (err) {
     flushBuffers_(cfg);
-    eventStateLog("Failure", err.message);
-    return { status: false , msg:  err.message };
+    if(eventStateLog("Failure", err.message)) {
+      return { status: false , msg:  err.message };
+    } else {
+      return { status: false, msg: 'eventStateLog failure ' + err.message};
+    }
   }
 }
 
@@ -468,7 +598,7 @@ function menuValidateTemplate() {
   try {
     const vals = cfg.ml.getDataRange().getValues();
     if (vals.length < 1) {
-      throw new Error('"MailingList" has no headers.');
+       throw new Error('"MailingList" has no headers.');
     }
     const headers = vals[0].map(h => String(h).trim()).filter(Boolean);
 

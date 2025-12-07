@@ -16,8 +16,10 @@ function getMergeInfo() {
   let elapsedTime;
   const props = PropertiesService.getScriptProperties().getProperties();
   if (props.pauseStart) {
+    let pauseMs = new Date(props.pauseStart).getTime();
+    
     const now = new Date();
-    const elapsedMs = now.getTime() - Number(props.pauseStart);
+    const elapsedMs = now.getTime() - pauseMs;
 
     const hours = Math.floor(elapsedMs / 3600000);
     const minutes = Math.floor((elapsedMs % 3600000) / 60000);
@@ -33,18 +35,42 @@ function getMergeInfo() {
     elapsedTime = '00:00:00.000';
   }
 
+  if (props.runningStart) {
+    let runningMs = new Date(props.runningStart).getTime();
+    
+    const now = new Date();
+    const elapsedMs = now.getTime() - runningMs;
+
+    const hours = Math.floor(elapsedMs / 3600000);
+    const minutes = Math.floor((elapsedMs % 3600000) / 60000);
+    const seconds = Math.floor((elapsedMs % 60000) / 1000);
+    const millis = elapsedMs % 1000;
+
+    runningTime = Utilities.formatString(
+      "%02d:%02d:%02d.%03d",
+      hours, minutes, seconds, millis
+    );
+  }
+  else {
+    runningTime = '00:00:00.000';
+  }
+
+  let mode = getTestMode();
+
   return {
-    currentUser: props.currentUser || '',
-    remainingDailyQuota: props.remainingDailyQuota || '0',
+    currentUser: Session.getActiveUser().getEmail(),
+    remainingDailyQuota: getRemainingDailyQuota() || '0',
     listCount: props.listCount || '0',
     sent: props.sent || '0',
     remainingToSend: props.remainingToSend || '0',
+    testingMode: mode.msg || '',
     timestampStart: props.timestampStart || '',
     timestampLast: props.timestampLast || '',
     restartPending: props.restartPending || 'No',
     state: props.state || 'Idle',
     nextResume: props.nextResume || '',
     elapsedTime: elapsedTime || '',
+    runningTime: runningTime || '',
   };
 }
 
@@ -60,6 +86,45 @@ function timeStamp(ms) {
   return Utilities.formatDate(d, tz, "EEE MMM dd yyyy HH:mm:ss 'GMT'Z");
 }
 
+/**
+ * Determines if buffer represents a partially processed mailing list.
+ *
+ * @param {Array[]} buffer - 2D array of rows (first row is header).
+ * @param {number} sendCOL - Index of send column.
+ * @param {number} timeCOL - Index of time column.
+ * @return {boolean} - True if partially processed, false otherwise.
+ */
+function isRestartOkay(buffer, sendCOL, timeCOL) {
+  // Regex for Utilities.formatDate(d, tz, "EEE MMM dd yyyy HH:mm:ss 'GMT'Z")
+  const tsRegex = /^[A-Za-z]{3} [A-Za-z]{3} \d{2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}$/;
+
+  let seenTimestampBlock = "FALSE";
+
+  for (let i = 1; i < buffer.length; i++) { // skip header
+    let row = buffer[i];
+    let sendVal = row[sendCOL];
+    let timeVal = row[timeCOL];
+    if(i == 1 && (String(timeVal).trim() === "")) {
+        return false;
+    }
+    if (!seenTimestampBlock) {
+      // Expect FALSE + valid timestamp until we hit the first TRUE
+      if (sendVal === "FALSE" && typeof timeVal === "string" && tsRegex.test(timeVal.trim())) {
+        continue;
+      } else if (sendVal === "TRUE" && (timeVal == String(timeVal).trim() === "")) {
+        // Transition point: now we expect only TRUE + blank
+        seenTimestampBlock = "TRUE";
+      } else {
+        return false; // invalid pattern
+      }
+    }
+    return true;
+  }
+
+  // Must have seen at least one timestamp block and one remaining block
+  return seenTimestampBlock;
+}
+
 function hasTrigger() {
   return ScriptApp.getProjectTriggers()
     .some(t => t.getHandlerFunction() === 'resumeMenuSendAll');
@@ -70,34 +135,30 @@ function clearResumeTriggers() {
     if (t.getHandlerFunction() === 'resumeMenuSendAll') {
       ScriptApp.deleteTrigger(t);
     }
+    eventStateLog(null, 'menuSendAll triggers cleared')
   });
 }
 function scheduleResumeMenuSendAll(milliseconds)
 {
-  // process in r=decreasing order of milliseconds (Quota before Pending)
-  const props = PropertiesService.getScriptProperties()
+  // process in decreasing order of milliseconds (Quota before Pending)
+  const props = PropertiesService.getScriptProperties();
   clearResumeTriggers();
+  /**
   ScriptApp.newTrigger('resumeMenuSendAll')
   .timeBased()
   .after(milliseconds)
   .create();
-  const futureMs   = Date.now() + milliseconds;
-  nextResume = timeStamp(futureMs);
-  props.setProperty("nextResume", nextResume);
+  **/
+  if(setResumeMenuSendAllTimeTrigger(milliseconds)) {
+    const futureMs   = Date.now() + milliseconds;
+    const nextResume = timeStamp(futureMs);
+    props.setProperty("nextResume", nextResume);
+    eventStateLog(null, 'menuSendAll trigger set');
+    return true;
+  } 
+  return false;
 }
 
-function setNextResume(triggerTime) {
-  const props = PropertiesService.getScriptProperties();
-  let current = props.getProperty('nextResume');
-
-  // Only overwrite if we have a real timestamp
-  if (triggerTime) {
-    props.setProperty('nextResume', String(triggerTime));
-  } else if (!current) {
-    // Initialize if missing
-    props.setProperty('nextResume', '');
-  }
-}
 function resumeMenuSendAll() {
   menuSendAll(true);
 }
@@ -128,23 +189,77 @@ function listCount() {
   return (listCount);
 }
 
+function logOnly(user, sheet, stamp, state, msg) {
+  if(sheet) {
+    try {
+        sheet.appendRow([ stamp, state, msg || "", user ]);
+      } catch(error) {
+        Logger.log( stamp + ' state = ' + state + ' ' + (msg || "No message") + ' ' + error.message);
+      }
+    } else {
+      Logger.log(stamp + ' state = ' + state + ' ' + (msg || "No message"));
+    }
+}
+
 function eventStateLog(state, msg) {
-  const cfg = getConfig_();
-  const sheet = cfg.ss.getSheetByName('eventStateLog');
+  // New lightweight version without getConfig_() overhead
+  let sheet;
+  let user;
+  const props = PropertiesService.getScriptProperties();
   const stamp = timeStamp();
-  if (state !== false) {
-  let m;
-  if (state === 'Paused' || state === 'Quota') {
-    m = Date.now(); // current timestamp in ms
-    PropertiesService.getScriptProperties().setProperty('pauseStart', String(m));
+
+  if(cfgGlobal && cfgGlobal.ss) {
+    sheet = cfgGlobal.ss.getSheetByName('eventStateLog');
+    user = cfgGlobal.SENDER_EMAIL;
   } else {
-    PropertiesService.getScriptProperties().deleteProperty('pauseStart');
+      user = 'news@midlothianfriends.org';
+      const ss = SpreadsheetApp.openById(props.getProperty('SHEET_ID'));
+      if(ss) {
+        sheet = ss.getSheetByName('eventStateLog');
+      }
   }
-  PropertiesService.getScriptProperties().setProperty( 'state', state);
-   } else {
-    state = 'Info';
+
+  if (state !== null) {
+    if(!globalValidSendStates.includes(state)) {
+      logOnly(user, sheet, stamp, state, 'Invalid state');
+      return false;
+    }
+    if (state === 'Paused' || state === 'Quota') {
+      props.setProperty('pauseStart', stamp);
+      props.setProperty('state', state);
+      logOnly(user, sheet, stamp, state, msg);
+      return true;
+    } else {
+      props.deleteProperty('pauseStart');
+    }
+    if (state === 'Running') {
+      props.setProperty('runningStart', stamp);
+      props.setProperty('state', state);
+      logOnly(user, sheet, stamp, state, msg);
+      return true;
+    } else {
+      props.deleteProperty('runningStart');
+    }
+    let stateArray = ['Blocked', 'Complete', 'Error', 'Failure', 'Idle', 'Ready', 'Refreshed', 'restartFailure', 'Stopped'];
+    if (stateArray.includes(state)) {
+      if(hasTrigger()) {clearResumeTriggers();}
+      ['pauseStart','restartPending','nextResume','resumeType', 'stopSend'].forEach(key => {
+        props.deleteProperty(key);
+      });
+      props.setProperty('state', state);
+      logOnly(user, sheet, stamp, state, msg);
+      if (state === 'restartFailure') {
+        logOnly(user,sheet, stamp, state, "recording state transition");
+        props.setProperty('state', 'Ready'); // Returns to requiring manual re-start in Dashboard
+        logOnly(user, sheet, stamp, 'Ready', "return control to the Dashboard");
+      }
+      return true;
+    }
+  } else { // No state or properety changes
+      logOnly(user, sheet, stamp, 'Info', msg);
+      return true;
   }
-  sheet.appendRow([ stamp, state, msg || "", cfg.SENDER_EMAIL ]);
+  return false; // should not occur
 }
 
 function bufferAudit({action, recipient, result}) {
@@ -158,6 +273,7 @@ function flushBuffers_(cfg) {
     const mlRange = cfg.ml.getRange(1, 1, cfg.mirrorBuffer.length, cfg.mirrorBuffer[0].length);
     mlRange.setValues(cfg.mirrorBuffer);
     cfg.mirrorBuffer.length = 0 // clear the buffer in place
+    eventStateLog(null, 'Mailing list buffer flushed.')
   }
 
   // --- Flush AuditLog ---
@@ -168,6 +284,7 @@ function flushBuffers_(cfg) {
          .setValues(auditBuffer);
     auditBuffer.length = 0; // clear global buffer in place
   }
+  eventStateLog(null, 'Audit buffer flushed.')
 }
 
 function objectFromRows_(rows) {
