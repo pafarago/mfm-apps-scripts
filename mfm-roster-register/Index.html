@@ -4,46 +4,89 @@
     <base target="_top">
     <meta charset="UTF-8">
     <style>
-      body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        margin: 16px;
+      /* ===== Layout: single scroll region (table only), header stays visible ===== */
+      html, body {
+        height: 100%;
+        overflow: hidden; /* kill outer scrollbar */
       }
+      body {
+        margin: 0;
+        padding: 16px; /* replaces old body margin so height math is reliable */
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .page {
+        max-width: 1100px;            /* tweak if needed */
+        margin: 0 auto;
+        padding: 0 8px;
+
+        height: calc(100vh - 32px);   /* body padding top+bottom */
+        display: flex;
+        flex-direction: column;
+      }
+
       h1 {
         font-size: 20px;
-        margin-bottom: 8px;
+        margin: 0 0 8px 0;
       }
-      #searchBar {
-        margin-bottom: 8px;
-      }
+
+      #searchBar { margin-bottom: 8px; }
       #searchInput {
         padding: 6px 8px;
         width: 260px;
         max-width: 90%;
+        border: 1px solid #2b6cb0; /* thin blue border */
+        border-radius: 4px;
+        outline: none;
       }
+      #searchInput:focus {
+        box-shadow: 0 0 0 2px rgba(43,108,176,0.15);
+      }
+
       #status {
         font-size: 12px;
         color: #555;
-        margin-top: 4px;
-        margin-bottom: 8px;
+        margin: 4px 0 8px 0;
       }
+
+      .controls { margin-top: 8px; }
+      button {
+        padding: 6px 10px;
+        margin-right: 6px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      /* Scroll region */
+      #tableWrap {
+        flex: 1 1 auto;
+        overflow: auto;
+        margin-top: 4px;
+        min-height: 200px;
+        border: 0;
+      }
+
       table {
         border-collapse: collapse;
         width: 100%;
         font-size: 12px;
+        table-layout: fixed;
       }
       th, td {
         border: 1px solid #ddd;
         padding: 4px 6px;
+        vertical-align: middle;
       }
       th {
         background: #f3f3f3;
         position: sticky;
         top: 0;
         z-index: 2;
+        text-align: left;
       }
       tr:nth-child(even) td {
         background: #fafafa;
       }
+
       input[type="text"] {
         width: 100%;
         box-sizing: border-box;
@@ -55,57 +98,164 @@
       input[type="checkbox"] {
         transform: scale(1.1);
       }
-      .controls {
-        margin-top: 8px;
-      }
-      button {
-        padding: 6px 10px;
-        margin-right: 6px;
-        font-size: 12px;
-        cursor: pointer;
-      }
-      .dirty {
+
+      /* Dirty highlight MUST override zebra striping */
+      tr.dirty td {
         background-color: #fff3cd !important;
+      }
+
+      /* Address preview (one line in table) */
+      .addr-preview {
+        display: block;
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Tooltip: content-blind multi-line */
+      .addr-tooltip{
+        position:absolute;
+        z-index:9999;
+        padding:8px 10px;
+        border:1px solid #ccc;
+        background:#fff;
+        box-shadow:0 2px 12px rgba(0,0,0,.15);
+        border-radius:6px;
+        white-space:pre-wrap; /* show EXACT X lines */
+        max-width:420px;
+        display:none;
+      }
+
+      /* Modal */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.25);
+        display: none;
+        z-index: 10000;
+      }
+      .modal {
+        position: fixed;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(720px, 92vw);
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+        display: none;
+        z-index: 10001;
+      }
+      .modal-body { padding: 14px 14px 10px 14px; }
+      .modal h3 { margin: 0 0 8px 0; font-size: 16px; }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 10px 14px 14px 14px;
+        border-top: 1px solid #eee;
+      }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        font-family: inherit;
+        font-size: 12px;
+        padding: 8px;
       }
     </style>
   </head>
+
   <body>
-    <h1>MFM Roster Editor</h1>
-    <div id="searchBar">
-      <input id="searchInput" type="text" placeholder="Search by name, email, phone, etc.">
-      <button onclick="clearSearch()">Clear</button>
+    <div class="page">
+      <h1>MFM Roster Editor</h1>
+
+      <div id="searchBar">
+        <input id="searchInput" type="text" placeholder="Search by name, email, phone, etc.">
+        <button onclick="clearSearch()">Clear</button>
+      </div>
+
+      <div id="status">Loading roster…</div>
+
+      <div class="controls">
+        <button onclick="saveChanges()">Save Changes</button>
+        <button onclick="revertChanges()">Revert Unsaved Changes</button>
+        <button onclick="addNewRow()">Add New Record</button>
+        <button id="helpBtn" type="button">Help</button>
+      </div>
+
+      <div id="tableWrap">
+        <table id="rosterTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
-    <div id="status">Loading roster…</div>
-    <div class="controls">
-      <button onclick="saveChanges()">Save Changes</button>
-      <button onclick="revertChanges()">Revert Unsaved Changes</button>
-      <button onclick="addNewRow()">Add New Record</button>
+
+    <div id="addrTip" class="addr-tooltip" role="tooltip"></div>
+    <div id="backdrop" class="modal-backdrop"></div>
+
+    <!-- Address Editor Modal (Option A) -->
+    <div id="addrModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addrModalTitle">
+      <div class="modal-body">
+        <h3 id="addrModalTitle">Edit Address</h3>
+        <textarea id="addrTextarea" rows="6"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button id="addrCancel" type="button">Cancel</button>
+        <button id="addrSave" type="button">Save</button>
+      </div>
     </div>
-    <div style="max-height: 480px; overflow:auto; margin-top:4px;">
-      <table id="rosterTable">
-        <thead></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="controls">
-      <button onclick="saveChanges()">Save Changes</button>
-      <button onclick="revertChanges()">Revert Unsaved Changes</button>
-      <button onclick="addNewRow()">Add New Record</button>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="modal-body">
+        <h3 id="helpModalTitle">How to use this form</h3>
+        <ul style="margin: 8px 0 0 18px; padding:0; font-size:12px; line-height:1.5;">
+          <li>Use Search to filter rows.</li>
+          <li>Edit text fields directly. Only <b>Directory</b>, <b>QTC</b>, and <b>Survey</b> are checkboxes.</li>
+          <li>Phone formats on display and again when you leave the phone field.</li>
+          <li>Address: hover/focus shows full multi-line content; click to edit in a multi-line box.</li>
+          <li>Row highlight indicates unsaved changes; reverting a cell back clears the highlight.</li>
+        </ul>
+      </div>
+      <div class="modal-actions">
+        <button id="helpClose" type="button">Close</button>
+      </div>
     </div>
 
     <script>
+      // ===== Globals =====
       let headers = [];
       let rows = [];         // { rowNum, values }
       let filteredRows = []; // indices into rows
-      let dirtyMap = {};     // key -> updated values (key = rowNum or 'new_*')
+      let dirtyMap = {};     // key -> updated values (working copy)
+      let originalByRow = new Map(); // key -> original values snapshot (immutable until reload)
+      let addrEdit = null;   // { key, colIdx, tr }
 
-      function isBooleanLike(value) {
-        if (typeof value === 'boolean') return true;
-        if (typeof value === 'string') {
-          const s = value.trim().toLowerCase();
-          return ['true','false','yes','no','y','n','1','0','on','off'].includes(s);
-        }
-        return false;
+      function rebuildOriginalSnapshot_() {
+        originalByRow = new Map();
+        rows.forEach(r => originalByRow.set(String(r.rowNum), (r.values || []).slice()));
+      }
+
+      function normHeader(h) {
+        return String(h || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      }
+
+      function isBooleanColumn(header) {
+        const h = normHeader(header);
+        return h === 'directory' || h === 'qtc' || h === 'survey';
+      }
+
+      function isAddressColumn(header) {
+        const h = normHeader(header);
+        return h === 'address' || h === 'mailing address' || h === 'street address';
+      }
+
+      function isPhoneColumn(header) {
+        const h = normHeader(header);
+        return h === 'phone' || h === 'phone number' || h === 'mobile' || h === 'cell' || h === 'cell phone';
       }
 
       function boolFromValue(value) {
@@ -119,11 +269,150 @@
         return false;
       }
 
-      function valueFromInput(header, inputEl) {
-        if (inputEl.type === 'checkbox') {
-          return inputEl.checked;
-        }
+      function valueFromInput(inputEl) {
+        if (inputEl.type === 'checkbox') return inputEl.checked;
         return inputEl.value;
+      }
+
+      function formatPhoneClient_(s) {
+        const raw = String(s ?? '').trim();
+        if (!raw) return '';
+        let digits = raw.replace(/\D/g, '');
+        if (digits.length === 11 && digits[0] === '1') digits = digits.slice(1);
+        if (digits.length !== 10) return raw;
+        return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+      }
+
+      // Column widths (you can keep tuning these)
+      function setColWidths(th, header) {
+        const h = normHeader(header);
+
+        if (h === 'first name' || h === 'firstname' || h === 'given name' || h === 'given') {
+          th.style.width = '16ch';
+        } else if (h === 'last name' || h === 'lastname' || h === 'surname' || h === 'family name' || h === 'family') {
+          th.style.width = '24ch';
+        } else if (h === 'email' || h === 'email address' || h === 'e-mail' || h === 'e-mail address') {
+          th.style.width = '25ch';
+        } else if (isPhoneColumn(header)) {
+          th.style.width = '13ch';
+        } else if (h === 'qtc') {
+          th.style.width = '8ch';
+          th.style.textAlign = 'center';
+        } else if (h === 'directory') {
+          th.style.width = '12ch';
+          th.style.textAlign = 'center';
+        } else if (h === 'survey') {
+          th.style.width = '10ch';
+          th.style.textAlign = 'center';
+        } else if (isAddressColumn(header)) {
+          th.style.width = '27ch';
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? '')
+          .replace(/&/g,'&amp;')
+          .replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;')
+          .replace(/"/g,'&quot;')
+          .replace(/'/g,'&#39;');
+      }
+
+      function showMultilineTooltip_(anchorEl, rawValue){
+        const tip = document.getElementById('addrTip');
+        const text = String(rawValue ?? '').replace(/\r\n/g, '\n');
+        if (!text.trim()) return;
+
+        tip.textContent = text;
+        tip.style.display = 'block';
+
+        const r = anchorEl.getBoundingClientRect();
+        tip.style.left = (window.scrollX + r.left) + 'px';
+        tip.style.top  = (window.scrollY + r.bottom + 6) + 'px';
+      }
+      function hideMultilineTooltip_(){
+        document.getElementById('addrTip').style.display = 'none';
+      }
+      function attachMultilineHoverFocus_(cellEl, rawValue){
+        cellEl.tabIndex = 0;
+        cellEl.addEventListener('mouseenter', () => showMultilineTooltip_(cellEl, rawValue));
+        cellEl.addEventListener('mouseleave', hideMultilineTooltip_);
+        cellEl.addEventListener('focus',      () => showMultilineTooltip_(cellEl, rawValue));
+        cellEl.addEventListener('blur',       hideMultilineTooltip_);
+      }
+
+      function openModal(id) {
+        document.getElementById('backdrop').style.display = 'block';
+        document.getElementById(id).style.display = 'block';
+      }
+      function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+        const anyOpen = ['addrModal','helpModal'].some(mid => document.getElementById(mid).style.display === 'block');
+        if (!anyOpen) document.getElementById('backdrop').style.display = 'none';
+      }
+
+      function rowEqualsBase_(tr, baseVals) {
+        const tds = Array.from(tr.querySelectorAll('td'));
+        const rowKey = String(tr.dataset.rowNum);
+
+        for (let i = 0; i < headers.length; i++) {
+          const header = headers[i] || '';
+          const td = tds[i];
+          if (!td) continue;
+
+          if (isBooleanColumn(header)) {
+            const cb = td.querySelector('input[type="checkbox"]');
+            const curBool = cb ? cb.checked : false;
+            const baseBool = boolFromValue(baseVals[i]);
+            if (curBool !== baseBool) return false;
+
+          } else if (isAddressColumn(header)) {
+            // Address current value is in rows (updated via modal)
+            const rowObj = rows.find(r => String(r.rowNum) === rowKey);
+            const curAddr = rowObj ? String(rowObj.values[i] ?? '') : '';
+            const baseAddr = String(baseVals[i] ?? '');
+            if (curAddr !== baseAddr) return false;
+
+          } else {
+            const inp = td.querySelector('input[type="text"]');
+            const curText = inp ? inp.value : '';
+            const baseText = (baseVals[i] == null) ? '' : String(baseVals[i]);
+            if (curText !== baseText) return false;
+          }
+        }
+        return true;
+      }
+
+      function markDirty(tr, colIdx, inputEl) {
+        const key = String(tr.dataset.rowNum);
+        const baseVals = (originalByRow.get(key) || new Array(headers.length).fill(''));
+
+        if (!dirtyMap[key]) dirtyMap[key] = baseVals.slice();
+        dirtyMap[key][colIdx] = valueFromInput(inputEl);
+
+        if (rowEqualsBase_(tr, baseVals)) {
+          delete dirtyMap[key];
+          tr.classList.remove('dirty');
+        } else {
+          tr.classList.add('dirty');
+        }
+        updateStatus();
+      }
+
+      function markDirtyValue(tr, colIdx, value) {
+        const key = String(tr.dataset.rowNum);
+        const baseVals = (originalByRow.get(key) || new Array(headers.length).fill(''));
+
+        if (!dirtyMap[key]) dirtyMap[key] = baseVals.slice();
+        dirtyMap[key][colIdx] = value;
+
+        if (rowEqualsBase_(tr, baseVals)) {
+          delete dirtyMap[key];
+          tr.classList.remove('dirty');
+        } else {
+          tr.classList.add('dirty');
+        }
+        updateStatus();
       }
 
       function buildTable() {
@@ -134,37 +423,66 @@
 
         if (!headers.length) return;
 
-        // Header row
         const trHead = document.createElement('tr');
         headers.forEach(h => {
           const th = document.createElement('th');
           th.textContent = h;
+          setColWidths(th, h);
           trHead.appendChild(th);
         });
         thead.appendChild(trHead);
 
-        // Body
         filteredRows.forEach(idx => {
           const row = rows[idx];
           const tr = document.createElement('tr');
           tr.dataset.rowNum = row.rowNum;
 
+          const rowKey = String(tr.dataset.rowNum);
+          if (dirtyMap[rowKey]) tr.classList.add('dirty');
+
           row.values.forEach((val, colIdx) => {
             const td = document.createElement('td');
             const header = headers[colIdx] || '';
 
-            if (isBooleanLike(val)) {
+            if (isBooleanColumn(header)) {
               const cb = document.createElement('input');
               cb.type = 'checkbox';
               cb.checked = boolFromValue(val);
               cb.onchange = () => markDirty(tr, colIdx, cb);
               td.style.textAlign = 'center';
               td.appendChild(cb);
+
+            } else if (isAddressColumn(header)) {
+              const raw = (val === null || typeof val === 'undefined') ? '' : String(val);
+              td.innerHTML = `<span class="addr-preview">${escapeHtml(raw.replace(/\r\n/g, '\n'))}</span>`;
+              attachMultilineHoverFocus_(td, raw);
+
+              td.style.cursor = 'pointer';
+              td.addEventListener('click', () => {
+                addrEdit = { key: String(tr.dataset.rowNum), colIdx, tr };
+                document.getElementById('addrTextarea').value = raw.replace(/\r\n/g, '\n');
+                openModal('addrModal');
+                setTimeout(() => document.getElementById('addrTextarea').focus(), 0);
+              });
+
             } else {
               const inp = document.createElement('input');
               inp.type = 'text';
-              inp.value = (val === null || typeof val === 'undefined') ? '' : val;
-              inp.onchange = () => markDirty(tr, colIdx, inp);
+
+              const raw = (val === null || typeof val === 'undefined') ? '' : String(val);
+              inp.value = isPhoneColumn(header) ? formatPhoneClient_(raw) : raw;
+
+              if (isPhoneColumn(header)) {
+                inp.addEventListener('blur', () => {
+                  const before = inp.value;
+                  const after = formatPhoneClient_(before);
+                  if (after !== before) inp.value = after;
+                  markDirty(tr, colIdx, inp);
+                });
+              } else {
+                // Keep "change" semantics (marks dirty when leaving the cell)
+                inp.onchange = () => markDirty(tr, colIdx, inp);
+              }
               td.appendChild(inp);
             }
 
@@ -175,41 +493,24 @@
         });
       }
 
-      function markDirty(tr, colIdx, inputEl) {
-        const key = tr.dataset.rowNum; // may be numeric or 'new_*'
-        if (!dirtyMap[key]) {
-          const base = rows.find(r => String(r.rowNum) === String(key));
-          dirtyMap[key] = base ? base.values.slice() : new Array(headers.length).fill('');
-        }
-        dirtyMap[key][colIdx] = valueFromInput(headers[colIdx], inputEl);
-        tr.classList.add('dirty');
-        updateStatus();
-      }
-
       function updateStatus() {
         const dirtyCount = Object.keys(dirtyMap).length;
         const total = filteredRows.length;
         const status = document.getElementById('status');
-        if (!headers.length) {
-          status.textContent = 'No data loaded.';
-        } else if (dirtyCount > 0) {
-          status.textContent = `Showing ${total} record(s). Pending changes for ${dirtyCount} row(s).`;
-        } else {
-          status.textContent = `Showing ${total} record(s). No unsaved changes.`;
-        }
+
+        if (!headers.length) status.textContent = 'No data loaded.';
+        else if (dirtyCount > 0) status.textContent = `Showing ${total} record(s). Pending changes for ${dirtyCount} row(s).`;
+        else status.textContent = `Showing ${total} record(s). No unsaved changes.`;
       }
 
       function applySearch() {
         const q = document.getElementById('searchInput').value.trim().toLowerCase();
-        if (!q) {
-          filteredRows = rows.map((_, i) => i);
-        } else {
+        if (!q) filteredRows = rows.map((_, i) => i);
+        else {
           filteredRows = [];
           rows.forEach((row, i) => {
             const hay = row.values.join(' ').toLowerCase();
-            if (hay.includes(q)) {
-              filteredRows.push(i);
-            }
+            if (hay.includes(q)) filteredRows.push(i);
           });
         }
         buildTable();
@@ -222,43 +523,40 @@
       }
 
       function revertChanges() {
-        if (!confirm('Discard all unsaved changes and reload from the roster?')) {
-          return;
-        }
+        if (!confirm('Discard all unsaved changes and reload from the roster?')) return;
+
         document.getElementById('status').textContent = 'Reloading roster…';
         dirtyMap = {};
+
         google.script.run
           .withSuccessHandler(function(data) {
             headers = data.headers || [];
             rows = data.rows || [];
             filteredRows = rows.map((_, i) => i);
+
+            rebuildOriginalSnapshot_();
+
             buildTable();
             updateStatus();
           })
           .withFailureHandler(function(err) {
             console.error(err);
-            document.getElementById('status').textContent =
-              'Error reloading roster: ' + err.message;
+            document.getElementById('status').textContent = 'Error reloading roster: ' + err.message;
           })
           .getRosterData();
       }
 
       function addNewRow() {
         const numCols = headers.length;
-        if (numCols === 0) {
-          alert('Roster not loaded yet.');
-          return;
-        }
+        if (numCols === 0) { alert('Roster not loaded yet.'); return; }
 
         const emptyValues = new Array(numCols).fill('');
         const key = 'new_' + (Object.keys(dirtyMap).length + 1);
 
-        // Track as dirty so Save knows about it
+        // For new rows, base snapshot is empty (so any edit keeps it dirty)
         dirtyMap[key] = emptyValues.slice();
 
-        // Insert at top of rows array
         rows.unshift({ rowNum: key, values: emptyValues });
-        // Rebuild filtered index: shift old indices by +1 and put new row at 0
         filteredRows = [0, ...filteredRows.map(i => i + 1)];
 
         buildTable();
@@ -268,38 +566,34 @@
 
       function saveChanges() {
         const keys = Object.keys(dirtyMap);
-        if (keys.length === 0) {
-          alert('No changes to save.');
-          return;
-        }
+        if (keys.length === 0) { alert('No changes to save.'); return; }
 
         const payload = keys.map(k => {
           const n = parseInt(k, 10);
-          return {
-            rowNum: isNaN(n) ? null : n,
-            values: dirtyMap[k]
-          };
+          return { rowNum: isNaN(n) ? null : n, values: dirtyMap[k] };
         });
 
         document.getElementById('status').textContent = 'Saving changes…';
 
         google.script.run
           .withSuccessHandler(function(result) {
-            // After saving (including new rows), reload the roster
             dirtyMap = {};
+
+            // Reload after save (sort happens server-side)
             google.script.run
               .withSuccessHandler(function(data) {
                 headers = data.headers || [];
                 rows = data.rows || [];
                 filteredRows = rows.map((_, i) => i);
+
+                rebuildOriginalSnapshot_();
+
                 buildTable();
-                document.getElementById('status').textContent =
-                  `Saved ${result.updated} row(s).`;
+                document.getElementById('status').textContent = `Saved ${result.updated} row(s).`;
               })
               .withFailureHandler(function(err) {
                 console.error(err);
-                document.getElementById('status').textContent =
-                  'Error reloading after save: ' + err.message;
+                document.getElementById('status').textContent = 'Error reloading after save: ' + err.message;
               })
               .getRosterData();
           })
@@ -311,19 +605,69 @@
           .saveRosterRows(payload);
       }
 
+      // Address modal buttons
+      document.getElementById('addrCancel').addEventListener('click', () => {
+        addrEdit = null;
+        closeModal('addrModal');
+      });
+
+      document.getElementById('addrSave').addEventListener('click', () => {
+  if (!addrEdit) {
+    closeModal('addrModal');
+    return;
+  }
+
+  const v = document.getElementById('addrTextarea').value.replace(/\r\n/g, '\n');
+
+  // 1) Mark dirty FIRST (this sets tr.dirty)
+  markDirtyValue(addrEdit.tr, addrEdit.colIdx, v);
+
+  // 2) Update in-memory rows
+  const key = addrEdit.key;
+  const r = rows.find(rr => String(rr.rowNum) === String(key));
+  if (r) r.values[addrEdit.colIdx] = v;
+
+  // 3) Update the preview text IN PLACE (no rebuild)
+  const preview = addrEdit.tr.querySelector('.addr-preview');
+  if (preview) {
+    preview.textContent = v.replace(/\r\n/g, ' ');
+  }
+
+  addrEdit = null;
+  closeModal('addrModal');
+});
+
+
+      // Help modal
+      document.getElementById('helpBtn').addEventListener('click', () => openModal('helpModal'));
+      document.getElementById('helpClose').addEventListener('click', () => closeModal('helpModal'));
+
+      // Escape closes modals
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (document.getElementById('addrModal').style.display === 'block') {
+            addrEdit = null; closeModal('addrModal');
+          } else if (document.getElementById('helpModal').style.display === 'block') {
+            closeModal('helpModal');
+          }
+        }
+      });
+
       // Initial load
       google.script.run
         .withSuccessHandler(function(data) {
           headers = data.headers || [];
           rows = data.rows || [];
           filteredRows = rows.map((_, i) => i);
+
+          rebuildOriginalSnapshot_();
+
           buildTable();
           updateStatus();
         })
         .withFailureHandler(function(err) {
           console.error(err);
-          document.getElementById('status').textContent =
-            'Error loading roster: ' + err.message;
+          document.getElementById('status').textContent = 'Error loading roster: ' + err.message;
         })
         .getRosterData();
 
