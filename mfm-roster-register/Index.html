@@ -24,6 +24,19 @@
         flex-direction: column;
       }
 
+/* Tooltip should never steal clicks */
+.addr-tooltip { pointer-events: none; }
+
+/* Backdrop MUST be clickable (to close modal by clicking outside) */
+.modal-backdrop { pointer-events: auto; }
+
+/* When hidden, never intercept clicks */
+.modal[aria-hidden="true"], .modal-backdrop[aria-hidden="true"] { pointer-events: none; }
+
+      input.invalid-email {
+        background-color: #fdecea;
+      }
+
       h1 {
         font-size: 20px;
         margin: 0 0 8px 0;
@@ -170,7 +183,6 @@
   <body>
     <div class="page">
       <h1>MFM Roster Editor</h1>
-
       <div id="searchBar">
         <input id="searchInput" type="text" placeholder="Search by name, email, phone, etc.">
         <button onclick="clearSearch()">Clear</button>
@@ -257,6 +269,11 @@
         const h = normHeader(header);
         return h === 'phone' || h === 'phone number' || h === 'mobile' || h === 'cell' || h === 'cell phone';
       }
+      
+      function isEmailColumn(header) {
+        const h = normHeader(header);
+        return h === 'email' || h === 'email address' || h === 'e-mail';
+      }
 
       function boolFromValue(value) {
         if (value === true) return true;
@@ -272,6 +289,20 @@
       function valueFromInput(inputEl) {
         if (inputEl.type === 'checkbox') return inputEl.checked;
         return inputEl.value;
+      }
+
+      function isValidEmail_(v) {
+        if (!v) return true; // blank allowed
+        // pragmatic, not RFC-insane
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());
+      }
+
+      function isValidPhone_(v) {
+        const raw = String(v ?? '').trim();
+        if (!raw) return true; // blank allowed
+        let digits = raw.replace(/\D/g, '');
+        if (digits.length === 11 && digits[0] === '1') digits = digits.slice(1);
+        return digits.length === 10;
       }
 
       function formatPhoneClient_(s) {
@@ -341,15 +372,59 @@
         cellEl.addEventListener('blur',       hideMultilineTooltip_);
       }
 
-      function openModal(id) {
-        document.getElementById('backdrop').style.display = 'block';
-        document.getElementById(id).style.display = 'block';
-      }
-      function closeModal(id) {
-        document.getElementById(id).style.display = 'none';
-        const anyOpen = ['addrModal','helpModal'].some(mid => document.getElementById(mid).style.display === 'block');
-        if (!anyOpen) document.getElementById('backdrop').style.display = 'none';
-      }
+function openModal(id) {
+  hideMultilineTooltip_();
+
+  const bd = document.getElementById('backdrop');
+  const m  = document.getElementById(id);
+
+  bd.style.display = 'block';
+  bd.setAttribute('aria-hidden', 'false');
+
+  m.style.display = 'block';
+  m.setAttribute('aria-hidden', 'false');
+
+  // prevent weird background focus/scroll interactions
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(id) {
+  const bd = document.getElementById('backdrop');
+  const m  = document.getElementById(id);
+
+  m.style.display = 'none';
+  m.setAttribute('aria-hidden', 'true');
+
+  const anyOpen = ['addrModal','helpModal'].some(mid => {
+    const el = document.getElementById(mid);
+    return el && el.style.display === 'block';
+  });
+
+  if (!anyOpen) {
+    bd.style.display = 'none';
+    bd.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+
+    // hard safety: ensure nothing is left blocking clicks
+    document.documentElement.style.pointerEvents = 'auto';
+    document.body.style.pointerEvents = 'auto';
+    hideMultilineTooltip_();
+  }
+}
+
+document.getElementById('backdrop').addEventListener('mousedown', () => {
+  if (typeof activeModalId === 'string' && activeModalId) {
+    if (activeModalId === 'addrModal') addrEdit = null;
+    closeModal(activeModalId);
+  } else {
+    // fallback (in case you removed activeModalId later)
+    if (document.getElementById('addrModal').style.display === 'block') {
+      addrEdit = null; closeModal('addrModal');
+    } else if (document.getElementById('helpModal').style.display === 'block') {
+      closeModal('helpModal');
+    }
+  }
+});
 
       function rowEqualsBase_(tr, baseVals) {
         const tds = Array.from(tr.querySelectorAll('td'));
@@ -455,12 +530,23 @@
             } else if (isAddressColumn(header)) {
               const raw = (val === null || typeof val === 'undefined') ? '' : String(val);
               td.innerHTML = `<span class="addr-preview">${escapeHtml(raw.replace(/\r\n/g, '\n'))}</span>`;
-              attachMultilineHoverFocus_(td, raw);
+              
+              // SINGLE source of truth for hover + modal seed
+              td.dataset.addr = raw.replace(/\r\n/g, '\n');
 
               td.style.cursor = 'pointer';
+              td.tabIndex = 0;
+
+              // Hover/focus: always read current dataset value
+              const showTip = () => showMultilineTooltip_(td, td.dataset.addr || '');
+              td.addEventListener('mouseenter', showTip);
+              td.addEventListener('mouseleave', hideMultilineTooltip_);
+              td.addEventListener('focus', showTip);
+              td.addEventListener('blur', hideMultilineTooltip_);
+              
               td.addEventListener('click', () => {
                 addrEdit = { key: String(tr.dataset.rowNum), colIdx, tr };
-                document.getElementById('addrTextarea').value = raw.replace(/\r\n/g, '\n');
+                document.getElementById('addrTextarea').value = (td.dataset.addr || '');
                 openModal('addrModal');
                 setTimeout(() => document.getElementById('addrTextarea').focus(), 0);
               });
@@ -471,17 +557,47 @@
 
               const raw = (val === null || typeof val === 'undefined') ? '' : String(val);
               inp.value = isPhoneColumn(header) ? formatPhoneClient_(raw) : raw;
-
               if (isPhoneColumn(header)) {
                 inp.addEventListener('blur', () => {
+                  const raw = inp.value.trim();
+
+                  if (raw && !isValidPhone_(raw)) {
+                    inp.classList.add('invalid-phone');
+                    flashStatus_('Invalid phone number: ' + raw, 6000);
+                    try { inp.focus(); } catch(e) {}
+                    return;
+                  } else {
+                    inp.classList.remove('invalid-phone');
+                  }
+
                   const before = inp.value;
                   const after = formatPhoneClient_(before);
                   if (after !== before) inp.value = after;
+
                   markDirty(tr, colIdx, inp);
                 });
+              } else if (isEmailColumn(header)) {
+                inp.addEventListener('blur', () => {
+                  const v = inp.value.trim();
+
+                  if (v && !isValidEmail_(v)) {
+                    inp.classList.add('invalid-email');
+                    flashStatus_('Invalid email address: ' + v, 6000);
+                    try { inp.focus(); } catch(e) {}
+                    return;
+                  } else {
+                    inp.classList.remove('invalid-email');
+                  }
+
+                  markDirty(tr, colIdx, inp);
+              });
+
+              // also track dirty while typing (for new-row first-edit issue)
+              inp.addEventListener('input', () => markDirty(tr, colIdx, inp));
+
               } else {
-                // Keep "change" semantics (marks dirty when leaving the cell)
-                inp.onchange = () => markDirty(tr, colIdx, inp);
+                // Mark dirty immediately while typing (prevents "first edit not dirty")
+                inp.addEventListener('input', () => markDirty(tr, colIdx, inp));
               }
               td.appendChild(inp);
             }
@@ -503,6 +619,17 @@
         else status.textContent = `Showing ${total} record(s). No unsaved changes.`;
       }
 
+let statusTimer_ = null;
+
+function flashStatus_(msg, ms = 4000) {
+  const el = document.getElementById('status');
+  if (!el) return;
+  el.textContent = msg;
+  if (statusTimer_) clearTimeout(statusTimer_);
+  statusTimer_ = setTimeout(updateStatus, ms);
+}
+
+
       function applySearch() {
         const q = document.getElementById('searchInput').value.trim().toLowerCase();
         if (!q) filteredRows = rows.map((_, i) => i);
@@ -523,9 +650,18 @@
       }
 
       function revertChanges() {
-        if (!confirm('Discard all unsaved changes and reload from the roster?')) return;
+if (Object.keys(dirtyMap).length > 0) {
+  if (!revertChanges._armed) {
+    revertChanges._armed = true;
+    flashStatus_('Click "Revert Unsaved Changes" again to confirm.', 4000);
+    setTimeout(() => { revertChanges._armed = false; updateStatus(); }, 4000);
+    return;
+  }
+}
+revertChanges._armed = false;
 
-        document.getElementById('status').textContent = 'Reloading roster…';
+
+flashStatus_('Reloading roster…', 15000);
         dirtyMap = {};
 
         google.script.run
@@ -541,14 +677,14 @@
           })
           .withFailureHandler(function(err) {
             console.error(err);
-            document.getElementById('status').textContent = 'Error reloading roster: ' + err.message;
+flashStatus_('Error reloading roster: ' + err.message, 8000);
           })
           .getRosterData();
       }
 
       function addNewRow() {
         const numCols = headers.length;
-        if (numCols === 0) { alert('Roster not loaded yet.'); return; }
+if (numCols === 0) { flashStatus_('Roster not loaded yet.', 5000); return; }
 
         const emptyValues = new Array(numCols).fill('');
         const key = 'new_' + (Object.keys(dirtyMap).length + 1);
@@ -561,12 +697,12 @@
 
         buildTable();
         updateStatus();
-        alert('New blank row added at the top. Fill it in, then click "Save Changes" to create it.');
+flashStatus_('New blank row added at the top. Fill it in, then click "Save Changes".', 6000);
       }
 
       function saveChanges() {
         const keys = Object.keys(dirtyMap);
-        if (keys.length === 0) { alert('No changes to save.'); return; }
+if (keys.length === 0) { flashStatus_('No changes to save.', 4000); return; }
 
         const payload = keys.map(k => {
           const n = parseInt(k, 10);
@@ -599,7 +735,7 @@
           })
           .withFailureHandler(function(err) {
             console.error(err);
-            alert('Error saving changes: ' + err.message);
+flashStatus_('Error saving changes: ' + err.message, 8000);
             updateStatus();
           })
           .saveRosterRows(payload);
@@ -611,31 +747,44 @@
         closeModal('addrModal');
       });
 
+      function findCurrentRowEl_(rowKey) {
+        const trs = document.querySelectorAll('#rosterTable tbody tr');
+        for (const tr of trs) {
+          if (String(tr.dataset.rowNum) === String(rowKey)) return tr;
+        }
+        return null;
+      }
+
       document.getElementById('addrSave').addEventListener('click', () => {
-  if (!addrEdit) {
-    closeModal('addrModal');
-    return;
-  }
+      if (!addrEdit) {
+        closeModal('addrModal');
+        return;
+      }
 
-  const v = document.getElementById('addrTextarea').value.replace(/\r\n/g, '\n');
+      const v = document.getElementById('addrTextarea').value.replace(/\r\n/g, '\n');
 
-  // 1) Mark dirty FIRST (this sets tr.dirty)
-  markDirtyValue(addrEdit.tr, addrEdit.colIdx, v);
+      const currentTr = findCurrentRowEl_(addrEdit.key) || addrEdit.tr;
 
-  // 2) Update in-memory rows
-  const key = addrEdit.key;
-  const r = rows.find(rr => String(rr.rowNum) === String(key));
-  if (r) r.values[addrEdit.colIdx] = v;
 
-  // 3) Update the preview text IN PLACE (no rebuild)
-  const preview = addrEdit.tr.querySelector('.addr-preview');
-  if (preview) {
-    preview.textContent = v.replace(/\r\n/g, ' ');
-  }
+      // 1) Update in-memory rows first
+      const key = addrEdit.key;
+      const r = rows.find(rr => String(rr.rowNum) === String(key));
+      if (r) r.values[addrEdit.colIdx] = v;
 
-  addrEdit = null;
-  closeModal('addrModal');
-});
+      // 2) Mark dirty second (this sets tr.dirty)
+      markDirtyValue(currentTr, addrEdit.colIdx, v);
+
+      // 3) Update the preview text IN PLACE (no rebuild)
+      const preview = currentTr ? currentTr.querySelector('.addr-preview') : null;
+      if (preview) {
+        preview.textContent = v.replace(/\r\n/g, ' ');
+      }
+      const addrTd = currentTr ? currentTr.querySelectorAll('td')[addrEdit.colIdx] : null;
+      if (addrTd) addrTd.dataset.addr = v;
+
+      addrEdit = null;
+      closeModal('addrModal');
+    });
 
 
       // Help modal
