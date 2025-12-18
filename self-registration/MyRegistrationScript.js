@@ -33,6 +33,7 @@ const SR_ADMIN_EMAIL        = 'clerk@midlothianfriends.org';  // optional but re
  */
 function doGet(e) {
   const token = e && e.parameter && e.parameter.confirm;
+const SR_CONFIRM_SLUG_BASE = 'https://midlothianfriends.org/confirm?token=';  // friendly URL (WP redirects to Apps Script)
   if (token) {
     return srHandleConfirm_(String(token).trim());
   }
@@ -287,8 +288,7 @@ function srGenerateToken_() {
 
 /** Send confirmation email to requester */
 function srSendConfirmEmail_(email, token) {
-  const url  = ScriptApp.getService().getUrl();
-  const link = url + '?confirm=' + encodeURIComponent(token);
+    const link = SR_CONFIRM_SLUG_BASE + encodeURIComponent(token);
 
   const body =
     'Dear Friend,\n\n' +

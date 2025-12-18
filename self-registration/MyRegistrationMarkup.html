@@ -2,215 +2,210 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <base target="_top">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Midlothian Friends — Self-Registration</title>
     <style>
-      :root{
-        --brand:#0a3a66;
-        --brand-2:#0f6db3;
-        --text:#222;
-        --border:#ddd;
-        --card:#fff;
-        --radius:12px;
-        --shadow:0 2px 12px rgba(0,0,0,.08);
-      }
-      *, *::before, *::after{ box-sizing:border-box; }
-      html,body{ height:100%; }
-      body{
-        margin:0;
-        font-family: Georgia,"Times New Roman",Times,serif;
-        color:var(--text);
-        background:#f5f5f7;
-        /* Bigger than before for readability, esp. on phones */
-        font-size:clamp(18px, 4.8vw, 20px);
-        line-height:1.45;
-      }
-      img{ max-width:100%; height:auto; display:block; }
+/* Begin ChatGPT code block 2025-12-16 12:xx EST — v8 clamp-only CSS (no media queries) */
 
-      /* Shell */
-      main#site-content{
-        min-height:100vh;
-        padding:20px 16px 24px;
-      }
-
-      /* Card: about 30-character line width + margin around */
-      .content-box{
-        background:var(--card);
-        border:1px solid var(--border);
-        border-radius:var(--radius);
-        box-shadow:var(--shadow);
-        width:min(100% - 40px, 32rem);  /* ~30ch wide with margins */
-        margin:35px auto;               /* ≈20px top/bottom + side margin */
-        padding:24px 20px 26px;
-      }
-
-      /* Desktop (>=1000px): center card vertically */
-      @media (min-width: 1000px){
-        main#site-content{
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          padding:24px 16px;
-        }
-      }
-
-      /* Phones & tablets (<=999px): no flex; card shrinks to content, keeps margin */
-      @media (max-width: 999px){
-        main#site-content{
-          min-height:auto;
-          padding:20px 0 24px;
-          display:block;
-        }
-        .content-box{
-          /* keep width+margin from base rule; just ensure no forced height */
-          min-height:auto;
-          height:auto;
-	  margin:35px auto !important;
-        }
-      }
-
-      .header-stack{
-        text-align:center;
-        margin-bottom:14px;
-      }
-      .header-stack img{
-        width:130px;
-        margin:0 auto 6px;
-      }
-      .site-line{
-        font-weight:600;
-        font-size:clamp(1.2rem, 2.4vw + 1rem,1.55rem);
-        line-height:1.2;
-      }
-      .sub-line{
-        font-weight:600;
-        font-size:clamp(1.15rem, 2.2vw + 0.95rem,1.4rem);
-        line-height:1.2;
-        border-bottom:1px solid var(--border);
-        padding-bottom:6px;
-      }
-
-      .intro{
-        font-size:1.02rem;
-        margin:12px 0 8px;
-      }
-      .required{ color:#b00; }
-      .field{ margin-top:12px; }
-      label{
-        display:block;
-        font-size:1rem;
-        margin-bottom:4px;
-      }
-
-      input, textarea{
-        width:100%;
-        padding:13px 12px;
-        font-size:1.05rem;
-        border:1px solid var(--border);
-        border-radius:10px;
-        background:#fff;
-      }
-      textarea{
-        resize:vertical;
-        min-height:90px;
-        white-space:pre-wrap;
-      }
-
-      .actions{
-        display:flex;
-        gap:10px;
-        flex-wrap:wrap;
-        margin-top:16px;
-      }
-      .btn{
-        appearance:none;
-        border:1px solid var(--border);
-        padding:10px 18px;
-        border-radius:9999px;
-        cursor:pointer;
-        font-size:1rem;
-        background:#f7f7f7;
-      }
-      .btn-primary{
-        background:var(--brand);
-        border-color:var(--brand);
-        color:#fff;
-      }
-      .btn:disabled{
-        opacity:.6;
-        cursor:not-allowed;
-      }
-      #msg{
-        margin-top:10px;
-        font-size:.98rem;
-      }
-      #msg.error{ color:#b00; }
-
-      .form-wrap{
-        width:100%;
-        margin:0;
-      }
-
-      #phoneHelp{
-        font-size:.9rem;
-        opacity:.85;
-        margin-top:3px;
-      }
-
-      .visually-hidden{
-        position:absolute;
-        left:-10000px;
-        top:auto;
-        width:1px;
-        height:1px;
-        overflow:hidden;
-      }
-      /* Mobile/tablet scaling (≤ 999px): increase overall visual size */
-/* Stronger mobile/tablet scaling (≤ 999px) */
-@media (max-width: 999px){
-
-  /* Increase global base scaling */
-  html {
-    font-size: 26px !important;    /* Was 22px — now larger */
-  }
-
-  body {
-    font-size: 1.1rem !important;
-    line-height: 1.55 !important;
-  }
-
-  input, textarea {
-    font-size: 1.15rem !important;
-    padding: 18px 16px !important;
-  }
-
-  label {
-    font-size: 1.05rem !important;
-  }
-
-  .intro, #phoneHelp, #msg {
-    font-size: 1.05rem !important;
-  }
-
-  .btn {
-    font-size: 1.15rem !important;
-    padding: 16px 22px !important;
-  }
-
-  .header-stack img {
-    width: 170px !important;       /* enlarge logo appropriately */
-  }
-
-  /* Final stretch across viewport */
-  .content-box {
-    transform: scale(1.14);        /* Was 1.06 — now more substantial */
-    transform-origin: top center;
-  }
+/* Base font settings */
+html{
+  font-size: clamp(14px, 3.1vw, 16px);
+  line-height: 1.5;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-text-size-adjust: 100%;
 }
 
-    </style>
+:root{
+  --space-xs: clamp(4px, 1.0vw, 10px);
+  --space-sm: clamp(10px, 2.0vw, 14px);
+  --space-md: clamp(14px, 3.0vw, 22px);
+  --space-lg: clamp(18px, 4.0vw, 30px);
+  --space-xl: clamp(24px, 5.0vw, 40px);
+  --brand: #0a3a66;
+  --text: #222;
+  --border: #ddd;
+  --card: #fff;
+  --error: #b00;
+}
+
+*,
+*::before,
+*::after{
+  box-sizing: border-box;
+}
+
+body{
+  font-size: 1rem;
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+  background: #f5f5f7;
+}
+
+p{
+  margin: 0 0 var(--space-md);
+  max-width: 65ch;
+}
+
+small{
+  font-size: clamp(12px, 1.5vw, 14px);
+}
+
+/* Layout container */
+#site-content{
+  padding: clamp(10px, 3vw, 18px);
+}
+
+.content-box{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: clamp(14px, 4vw, 22px);
+  box-shadow: 0 clamp(1px, 0.6vw, 3px) clamp(10px, 3vw, 18px) rgba(0,0,0,.10);
+
+  width: 100%;
+  max-width: 780px;
+  margin: auto;
+  padding: clamp(18px, 5vw, 28px) clamp(14px, 4vw, 22px);
+}
+
+ 
+
+/* Header */
+.header-stack{
+  text-align: center;
+  margin-bottom: var(--space-md);
+}
+
+.header-stack img{
+  display: block;
+  margin: 0 auto var(--space-sm);
+  width: clamp(96px, 22vw, 132px);
+  height: auto;
+}
+
+.site-line{
+  font-weight: 650;
+  font-size: clamp(18px, 4.4vw, 22px);
+  line-height: 1.18;
+  margin: 0;
+}
+
+.sub-line{
+  font-weight: 600;
+  font-size: clamp(20px, 5.2vw, 26px);
+  line-height: 1.15;
+  margin: 0;
+}
+
+/* Intro and form */
+.intro{
+  margin: 0 0 var(--space-md);
+}
+
+.form-wrap{
+  width: 100%;
+  margin: 0;
+}
+
+.field{
+  margin-top: var(--space-md);
+}
+
+label{
+  display: block;
+  font-size: clamp(20px, 10vw, 30px);
+  font-weight: 500;
+  margin-bottom: var(--space-xs);
+}
+
+.required{
+  color: var(--error);
+}
+
+input,
+textarea{
+  width: 100%;
+  padding: clamp(12px, 3.2vw, 14px);
+  font-size: clamp(20px, 10vw, 30px);
+  border: 1px solid var(--border);
+  border-radius: clamp(12px, 3.2vw, 16px);
+  background: #fff;
+}
+
+textarea{
+  min-height: clamp(90px, 10vw, 140px);
+  resize: vertical;
+  white-space: pre-wrap;
+}
+
+#phoneHelp{
+  margin-top: var(--space-xs);
+  color: #555;
+  font-size: clamp(12px, 1.6vw, 14px);
+}
+
+/* Buttons */
+.actions{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.btn{
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: clamp(12px, 3.2vw, 14px) clamp(16px, 4vw, 20px);
+  font-size: 1rem;
+  font-weight: 650;
+  cursor: pointer;
+  background: #f7f7f7;
+}
+
+.btn-primary{
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+#msg{
+  margin-top: var(--space-sm);
+  font-size: clamp(14px, 1.8vw, 16px);
+}
+
+/* Accessibility helper */
+.visually-hidden{
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  border: 0;
+}
+@media (width <=  999px) {
+  #site-content{
+  padding: 0;
+  }
+  .content-box{
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+  input,
+  textarea{
+  font-size: clamp(20px, 15vw, 50px);
+  }
+  label{
+  font-size: clamp(20px, 15vw, 50px);
+  }
+ }
+/* End ChatGPT code block 2025-12-16 12:xx EST */
+</style>
   </head>
   <body>
     <main id="site-content">
@@ -290,7 +285,7 @@
           </div>
 
           <div class="actions">
-            <button id="saveBtn"   class="btn btn-primary" type="button">Continue</button>
+            <button id="saveBtn"   class="btn btn-primary" type="button">Next</button>
             <button id="cancelBtn" class="btn"             type="button">Cancel</button>
           </div>
 
