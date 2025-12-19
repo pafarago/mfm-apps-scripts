@@ -11,10 +11,11 @@
 
 /* Base font settings */
 html{
-  font-size: clamp(14px, 3.1vw, 16px);
+  font-size: 16px;
   line-height: 1.5;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  -webkit-text-size-adjust: 100%;
+  webkit-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 :root{
@@ -45,6 +46,7 @@ body{
 }
 
 p{
+  font-size: clamp(20px, 7vw, 30px);
   margin: 0 0 var(--space-md);
   max-width: 65ch;
 }
@@ -80,22 +82,22 @@ small{
 
 .header-stack img{
   display: block;
-  margin: 0 auto var(--space-sm);
-  width: clamp(96px, 22vw, 132px);
+  margin: 0 auto var(--space-md);
+  width: clamp(96px, 22vw, 180px);
   height: auto;
 }
 
 .site-line{
   font-weight: 650;
-  font-size: clamp(18px, 4.4vw, 22px);
+  font-size: clamp(20px, 10vw, 30px);
   line-height: 1.18;
   margin: 0;
 }
 
 .sub-line{
-  font-weight: 600;
-  font-size: clamp(20px, 5.2vw, 26px);
-  line-height: 1.15;
+  font-weight: 650;
+  font-size: clamp(20px, 10vw, 30px);
+  line-height: 1.18;
   margin: 0;
 }
 
@@ -120,6 +122,17 @@ label{
   margin-bottom: var(--space-xs);
 }
 
+.field-error {
+  margin-left: 8px;
+  font-size: 0.9em;
+  color: #b00020;   /* matches your error color */
+  font-weight: normal;
+}
+
+input.is-invalid, textarea.is-invalid, select.is-invalid {
+  outline: 2px solid #b00020;
+  outline-offset: 2px;
+}
 .required{
   color: var(--error);
 }
@@ -159,16 +172,16 @@ textarea{
   border: 1px solid var(--border);
   border-radius: 9999px;
   padding: clamp(12px, 3.2vw, 14px) clamp(16px, 4vw, 20px);
-  font-size: 1rem;
+  font-size: 1.5vw;
   font-weight: 650;
   cursor: pointer;
-  background: #f7f7f7;
+  background-color: gray;
+  color: #ffffff;
 }
 
 .btn-primary{
-  background: var(--brand);
-  border-color: var(--brand);
-  color: #fff;
+  background-color: #2e7d32;
+  color: #ffffff;
 }
 
 #msg{
@@ -187,6 +200,36 @@ textarea{
   clip: rect(0,0,0,0);
   border: 0;
 }
+
+/* Begin ChatGPT code block 2025-12-19 14:40 EST — force verify button styling */
+#verify-step #verifyBtn {
+  display: block;
+  margin: 18px auto 0 auto;
+
+  background-color: #2e7d32;
+  color: #ffffff;
+
+  border: none;
+  padding: 16px 32px;
+  font-size: 1.2em;
+  font-weight: 600;
+
+  border-radius: 12px;
+  min-width: 240px;
+
+  cursor: pointer;
+}
+
+#verify-step #verifyBtn:active {
+  transform: translateY(1px);
+}
+
+#verify-step #verifyBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+/* End ChatGPT code block 2025-12-19 14:40 EST — force verify button styling */
+
 @media (width <=  999px) {
   #site-content{
   padding: 0;
@@ -202,6 +245,14 @@ textarea{
   }
   label{
   font-size: clamp(20px, 15vw, 50px);
+  }
+  /* Mobile buttons: stacked, centered, ~50% width */
+  .actions{
+    flex-direction: row;
+    align-items: center;
+  }
+  .btn{
+    font-size: 5vw;
   }
  }
 /* End ChatGPT code block 2025-12-16 12:xx EST */
@@ -220,13 +271,17 @@ textarea{
 
         <h1 id="title" class="visually-hidden">News Subscription</h1>
 
-        <p class="intro">
-          Enter your info and press Continue. Check your email to complete your registration.
+        <!-- Begin ChatGPT code block 2025-12-19 14:25 EST — form intro -->
+        <p id="form-intro">
+          <strong>Enter your information and click Submit.</strong><br>
+          We’ll email you a verification code to finish signing up.
         </p>
+        <!-- End ChatGPT code block 2025-12-19 14:25 EST — form intro -->
+
 
         <form id="sr-form" class="form-wrap" novalidate>
           <div class="field">
-            <label for="email">Email <span class="required">*</span></label>
+            <label for="email">Email <span id="email-error" class="field-error" aria-live="polite"></span></label>
             <input
               id="email"
               type="email"
@@ -261,18 +316,15 @@ textarea{
 
           <!-- U.S. phone only; optional; 14 chars formatted: (AAA) BBB-CCCC -->
           <div class="field">
-            <label for="phone">Phone (optional)</label>
+            <label for="phone">Phone <span id="phone-error" class="field-error" aria-live="polite"></span></label>
             <input
               id="phone"
               type="tel"
               inputmode="tel"
               autocomplete="tel"
               maxlength="14"
-              placeholder="(804) 658-1234"
+              placeholder="(555) 555-5555"
               aria-describedby="phoneHelp">
-            <div id="phoneHelp">
-              U.S. numbers only. If entered, it must be valid and will be formatted automatically.
-            </div>
           </div>
 
           <div class="field">
@@ -281,16 +333,42 @@ textarea{
               id="address"
               rows="3"
               maxlength="90"
-              placeholder="Street, City&#10;State ZIP"></textarea>
+              placeholder="Street&#10;City, State ZIP"></textarea>
           </div>
 
           <div class="actions">
-            <button id="saveBtn"   class="btn btn-primary" type="button">Next</button>
+            <button id="saveBtn"   class="btn btn-primary" type="button">Submit</button>
             <button id="cancelBtn" class="btn"             type="button">Cancel</button>
           </div>
 
           <div id="msg" role="status" aria-live="polite"></div>
         </form>
+        <!-- Begin ChatGPT code block 2025-12-19 13:30 EST — verify step markup -->
+        <div id="verify-step" class="form-wrap" style="display:none;">
+          <div class="content-box">
+            <h2>Verify your email</h2>
+
+            <p id="verify-instructions">
+              As a security measure, we’ve sent a verification code to
+              <strong><span id="verify-email"></span></strong>.
+              Please check your email, enter the code below, and click <strong>Verify</strong>.
+            </p>
+
+            <label for="verifyCode">
+              Verification code
+              <span id="verifyCode-error" class="field-error" aria-live="polite"></span>
+            </label>
+            <input id="verifyCode" type="text" inputmode="numeric" autocomplete="one-time-code"
+                  maxlength="6" placeholder="6-digit code" />
+
+            <div class="btn-row">
+              <button id="verifyBtn" type="button">Verify</button>
+            </div>
+
+            <div id="verify-msg" class="msg" aria-live="polite"></div>
+          </div>
+        </div>
+        <!-- End ChatGPT code block 2025-12-19 13:30 EST — verify step markup -->
       </section>
     </main>
 
@@ -299,6 +377,88 @@ textarea{
       const cancelBtn = document.getElementById('cancelBtn');
       const phoneEl   = document.getElementById('phone');
       const addr      = document.getElementById('address');
+      const emailEl   = document.getElementById('email');
+      // Begin ChatGPT code block 2025-12-19 13:30 EST — verify step refs
+      const verifyStep  = document.getElementById('verify-step');
+      const verifyEmail = document.getElementById('verify-email');
+      const verifyCode  = document.getElementById('verifyCode');
+      const verifyBtn   = document.getElementById('verifyBtn');
+      const verifyMsg   = document.getElementById('verify-msg');
+      // End ChatGPT code block 2025-12-19 13:30 EST — verify step refs
+
+ 
+// Begin ChatGPT code block 2025-12-19 12:45 EST — email blur + clear-on-type
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+emailEl.addEventListener('input', function () {
+  // as soon as they type, clear the inline error + red outline
+  setFieldError('email', '');
+  setInvalidClass(emailEl, false);
+});
+
+emailEl.addEventListener('blur', function () {
+  const v = (emailEl.value || '').trim();
+  const ok = v && emailRegex.test(v);
+
+  if (!ok) {
+    setFieldError('email', v ? 'Invalid email' : 'Required');
+    setInvalidClass(emailEl, true);
+
+    setTimeout(() => {
+      emailEl.focus();
+      emailEl.select();
+    }, 0);
+    return;
+  }
+
+  setFieldError('email', '');
+  setInvalidClass(emailEl, false);
+});
+// End ChatGPT code block 2025-12-19 12:45 EST — email blur + clear-on-type
+
+// Begin ChatGPT code block 2025-12-19 15:05 EST — confirmed splash
+function showConfirmedSplash(email){
+  const splash = `
+    <style>
+      html,body{
+        height:100%;
+        margin:0;
+        font-family:Georgia,"Times New Roman",Times,serif;
+        background:#f5f5f7;
+        color:#222;
+        display:grid;
+        place-items:center;
+      }
+      .splash{
+        max-width:720px;
+        padding:24px;
+        text-align:center;
+      }
+      .splash h2{
+        font-size:clamp(1.25rem,3.5vw,1.75rem);
+        margin:0 0 10px;
+      }
+      .splash p{
+        font-size:clamp(1rem,2.8vw,1.15rem);
+        margin:0;
+      }
+    </style>
+    <div class="splash">
+      <h2>Thank you — your subscription is confirmed.</h2>
+      <p>
+        The email address <strong>${email}</strong> has been successfully subscribed
+        to news from Midlothian Friends Meeting.
+      </p>
+      <p style="margin-top:12px;">
+        You may now close this tab in your browser.
+      </p>
+    </div>`;
+  document.documentElement.innerHTML = splash;
+}
+// End ChatGPT code block 2025-12-19 15:05 EST — confirmed splash
+
+
+// End ChatGPT code block 2025-12-19 11:xx EST — email blur validation
 
       saveBtn.addEventListener('click', submitForm);
 
@@ -343,42 +503,111 @@ textarea{
         this.value = lines.join('\n');
       });
 
+  
+      // Begin ChatGPT code block 2025-12-19 12:45 EST — inline field errors + invalid class
+      function setFieldError(field, msg) {
+        const el = document.getElementById(field + '-error'); // "email-error", "phone-error"
+        if (el) el.textContent = msg || '';
+      }
+
+      function setInvalidClass(el, isInvalid) {
+        if (!el) return;
+        el.classList.toggle('is-invalid', !!isInvalid);
+      }
+// End ChatGPT code block 2025-12-19 12:45 EST — inline field errors + invalid class
+
       function setMsg(t, isError){
         const el = document.getElementById('msg');
         el.textContent = t || '';
         el.className = isError ? 'error' : '';
       }
-
-      // === U.S. NANP phone normalization (client-side) ===
-      function normalizeUSPhoneNANP(raw){
-        const s = String(raw || '').trim();
-        if(!s) return '';
-        const digits = s.replace(/\D+/g, '');
-        if(digits.length !== 10) throw new Error('Not a valid phone number');
-
-        const a = digits.slice(0,3);
-        const b = digits.slice(3,6);
-        const c = digits.slice(6);
-
-        if(!/^[2-9][0-9]{2}$/.test(a)) throw new Error('Not a valid phone number');
-        if(/^[2-9]11$/.test(a))        throw new Error('Not a valid phone number');
-        if(!/^[2-9][0-9]{2}$/.test(b)) throw new Error('Not a valid phone number');
-        if(/^[2-9]11$/.test(b))        throw new Error('Not a valid phone number');
-
-        return '('+a+') '+b+'-'+c; // 14 chars
+      // Begin ChatGPT code block 2025-12-19 13:30 EST — verify helpers
+      function setVerifyMsg(text, isError){
+        if (!verifyMsg) return;
+        verifyMsg.textContent = text || '';
+        verifyMsg.className = isError ? 'msg error' : 'msg';
       }
 
-      // On blur: validate/format, or alert + clear
-      phoneEl.addEventListener('blur', function(){
-        const raw = phoneEl.value;
-        if(!raw) return;
-        try{
-          phoneEl.value = normalizeUSPhoneNANP(raw);
-        }catch(err){
-          alert('Not a valid phone number');
-          phoneEl.value = '';
+      function showVerifyStep(email){
+        // Hide the signup form UI
+        const form = document.getElementById('sr-form');
+        form.style.display = 'none';
+
+        const intro = document.getElementById('form-intro');
+        if (intro) intro.style.display = 'none';
+
+        // Show verify UI
+        verifyEmail.textContent = email;
+        verifyStep.style.display = 'block';
+
+        // Focus code input
+        setTimeout(() => {
+          verifyCode.focus();
+          verifyCode.select();
+        }, 0);
+      }
+// End ChatGPT code block 2025-12-19 13:30 EST — verify helpers
+
+      // === U.S. NANP phone normalization (client-side) ===
+     function normalizeUSPhoneNANP(raw){
+      const s = String(raw || '').trim();
+      if (!s) return '';
+
+      let digits = s.replace(/\D+/g, '');
+
+      // Allow leading US country code and discard it
+      if (digits.length === 11 && digits.startsWith('1')) {
+        digits = digits.slice(1);
+      }
+
+      // Must be exactly 10 digits now
+      if (digits.length !== 10) {
+        throw new Error('Not a valid US phone number');
+      }
+
+      const a = digits.slice(0,3);
+      const b = digits.slice(3,6);
+      const c = digits.slice(6);
+
+      // NANP sanity checks
+      if (!/^[2-9][0-9]{2}$/.test(a)) throw new Error('Invalid area code');
+      if (!/^[2-9][0-9]{2}$/.test(b)) throw new Error('Invalid exchange');
+
+      return `(${a}) ${b}-${c}`;
+    }
+
+
+      // Begin ChatGPT code block 2025-12-19 12:45 EST — phone blur + clear-on-type
+      phoneEl.addEventListener('input', function () {
+        setFieldError('phone', '');
+        setInvalidClass(phoneEl, false);
+      });
+
+      phoneEl.addEventListener('blur', function () {
+        const raw = (phoneEl.value || '').trim();
+
+        // phone is optional; if blank, it's fine
+        if (!raw) {
+          setFieldError('phone', '');
+          setInvalidClass(phoneEl, false);
+          return;
+        }
+
+        try {
+          phoneEl.value = normalizeUSPhoneNANP(raw); // formats to (###) ###-####
+          setFieldError('phone', '');
+          setInvalidClass(phoneEl, false);
+        } catch (e) {
+          setFieldError('phone', 'Invalid phone');
+          setInvalidClass(phoneEl, true);
+
+          setTimeout(() => {
+            phoneEl.focus();
+            phoneEl.select();
+          }, 0);
         }
       });
+      // End ChatGPT code block 2025-12-19 12:45 EST — phone blur + clear-on-type
 
       function submitForm(){
         setMsg('');
@@ -416,15 +645,55 @@ textarea{
         }
 
         google.script.run
+          // Begin ChatGPT code block 2025-12-19 13:30 EST — on submit show verify
           .withSuccessHandler(function (responseText) {
-            setMsg(responseText || 'Thank you. Please check your email to confirm your subscription.');
-            document.getElementById('sr-form').reset();
+            // Keep bottom msg if you want, but users may not see it; we switch screens instead.
+            // setMsg(responseText || '', false);
+
+            showVerifyStep(email);
           })
+          // End ChatGPT code block 2025-12-19 13:30 EST — on submit show verify
           .withFailureHandler(function (err) {
             setMsg('Error: ' + (err && err.message ? err.message : err), true);
           })
           .selfRegSubmit({ email, firstName, lastName, phone, address });
       }
+
+      // Begin ChatGPT code block 2025-12-19 13:30 EST — verify button handler
+      verifyBtn.addEventListener('click', function () {
+        setVerifyMsg('');
+
+        const email = (document.getElementById('email').value || '').trim().toLowerCase();
+        const code  = (verifyCode.value || '').replace(/\D+/g, '').trim();
+
+        if (code.length !== 6) {
+          setVerifyMsg('Please enter the 6-digit code.', true);
+          verifyCode.focus();
+          verifyCode.select();
+          return;
+        }
+
+        setVerifyMsg('Verifying…');
+
+        google.script.run
+         // Begin ChatGPT code block 2025-12-19 15:05 EST — verified → splash
+        .withSuccessHandler(function (msg) {
+          const email = document.getElementById('email').value.trim();
+          showConfirmedSplash(email);
+        })
+// End ChatGPT code block 2025-12-19 15:05 EST — verified → splash
+
+          .withFailureHandler(function (err) {
+            setVerifyMsg('Error: ' + (err && err.message ? err.message : err), true);
+          })
+          .selfRegVerify({ email: email, code: code });
+      });
+
+      verifyCode.addEventListener('input', function () {
+        // Clear any verify message as they type
+        setVerifyMsg('');
+      });
+      // End ChatGPT code block 2025-12-19 13:30 EST — verify button handler
     </script>
   </body>
 </html>
