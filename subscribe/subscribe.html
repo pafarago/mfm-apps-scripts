@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Midlothian Friends — Self-Registration</title>
+
+<style>
+/* === Your existing CSS (kept) === */
+html {
+  font-size: 16px;
+  line-height: 1.5;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+:root {
+  --space-xs: clamp(4px, 1vw, 8px);
+  --space-sm: clamp(8px, 2vw, 12px);
+  --space-md: clamp(12px, 3vw, 18px);
+  --space-lg: clamp(16px, 4vw, 26px);
+  --space-xl: clamp(20px, 5vw, 34px);
+
+  --brand: #0a3a66;
+  --text: #222;
+  --border: #ddd;
+  --card: #fff;
+  --error: #b00;
+}
+body {
+  margin: 0;
+  padding: 0;
+  background: #f5f5f7;
+  color: var(--text);
+  overflow-x: hidden;
+  position: relative;
+}
+html, body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+p {
+  font-size: clamp(16px, 3.5vw, 22px);
+  margin: 0 0 var(--space-md);
+  max-width: 65ch;
+}
+#site-content {
+  padding: clamp(10px, 3vw, 18px);
+}
+.content-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: clamp(14px, 4vw, 22px);
+  box-shadow: 0 clamp(1px, 0.6vw, 3px) clamp(10px, 3vw, 18px) rgba(0,0,0,.10);
+
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+
+  padding: clamp(10px, 2.5vw, 16px) clamp(14px, 3vw, 20px) clamp(10px, 2.5vw, 16px);
+  overflow-x: hidden;
+}
+.header-stack {
+  text-align: center;
+  margin-bottom: var(--space-md);
+}
+.header-stack img {
+  display: block;
+  margin: 0 auto var(--space-md);
+  width: clamp(120px, 40vw, 240px);
+  height: auto;
+}
+.site-line,
+.sub-line {
+  font-weight: 650;
+  font-size: clamp(22px, 6vw, 32px);
+  line-height: 1.2;
+  margin: 0;
+}
+.field {
+  margin-top: var(--space-md);
+}
+label {
+  display: block;
+  font-size: clamp(18px, 4.5vw, 24px);
+  font-weight: 500;
+  margin-bottom: var(--space-xs);
+  margin-left: var(--space-md);
+}
+input,
+textarea {
+  display: block;
+  font-size: clamp(18px, 4.5vw, 24px);
+  width: 95%;
+  max-width: 95%;
+  margin-left: auto;
+  margin-right: auto;
+
+  box-sizing: border-box;
+  padding: clamp(12px, 3vw, 16px);
+  border: 1px solid var(--border);
+  border-radius: clamp(10px, 3vw, 14px);
+  background: #fff;
+
+  text-align: left;
+}
+textarea {
+  min-height: clamp(90px, 10vw, 140px);
+  resize: vertical;
+  white-space: pre-wrap;
+}
+.field-error {
+  margin-left: 8px;
+  font-size: clamp(14px, 2.5vw, 16px);
+  color: var(--error);
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+.btn {
+  appearance: none;
+  border: none;
+  width: 95%;
+  max-width: 95%;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 9999px;
+  padding: clamp(14px, 4vw, 18px) clamp(20px, 5vw, 28px);
+  font-size: clamp(16px, 4vw, 20px);
+  font-weight: 650;
+  cursor: pointer;
+  background-color: gray;
+  color: #fff;
+}
+.btn-primary {
+  background-color: #2e7d32;
+}
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  border: 0;
+}
+@media (min-width: 1000px) {
+  .content-box {
+    max-width: 780px;
+    margin: 2rem auto;
+    padding: 2rem;
+  }
+  .actions {
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+}
+
+/* minimal msg styling */
+#msg, #verify-msg { margin-top: 10px; font-size: 1rem; }
+.error { color: #b00; }
+</style>
+  </head>
+
+  <body>
+    <main id="site-content">
+      <section class="content-box" role="region" aria-labelledby="title">
+        <div class="header-stack">
+          <img
+            src="https://static.wixstatic.com/media/66c239_957d211722134ee2b014d0dec57f1aa9~mv2.png"
+            alt="Midlothian Friends Meeting - Wix">
+          <div class="site-line">Midlothian Friends Meeting</div>
+          <div class="sub-line">News Subscription</div>
+        </div>
+
+        <h1 id="title" class="visually-hidden">News Subscription</h1>
+
+        <form id="sr-form" class="form-wrap" novalidate>
+          <div class="field">
+            <label for="email">Email <span id="email-error" class="field-error" aria-live="polite"></span></label>
+            <input id="email" type="email" required inputmode="email" autocomplete="email"
+                   maxlength="30" placeholder="name@example.org">
+          </div>
+
+          <div class="field">
+            <label for="firstName">First name <span class="required">*</span></label>
+            <input id="firstName" type="text" required autocomplete="given-name"
+                   maxlength="30" placeholder="First">
+          </div>
+
+          <div class="field">
+            <label for="lastName">Last name <span class="required">*</span></label>
+            <input id="lastName" type="text" required autocomplete="family-name"
+                   maxlength="30" placeholder="Last">
+          </div>
+
+          <div class="field">
+            <label for="phone">Phone <span id="phone-error" class="field-error" aria-live="polite"></span></label>
+            <input id="phone" type="tel" inputmode="tel" autocomplete="tel"
+                   maxlength="14" placeholder="(555) 555-5555">
+          </div>
+
+          <div class="field">
+            <label for="address">Postal address (optional)</label>
+            <textarea id="address" rows="3" maxlength="90"
+                      placeholder="Street&#10;City, State ZIP"></textarea>
+          </div>
+
+          <div class="actions">
+            <button id="saveBtn"   class="btn btn-primary" type="button">Submit</button>
+            <button id="cancelBtn" class="btn"             type="button">Cancel</button>
+          </div>
+
+          <div id="msg" role="status" aria-live="polite"></div>
+        </form>
+
+        <!-- verify step (kept) -->
+        <div id="verify-step" class="form-wrap" style="display:none;">
+          <div class="content-box">
+            <h2>Verify your email</h2>
+
+            <p id="verify-instructions">
+              As a security measure, we’ve sent a verification code to
+              <strong><span id="verify-email"></span></strong>.
+              Please check your email, enter the code below, and click <strong>Verify</strong>.
+            </p>
+
+            <label for="verifyCode">
+              Verification code
+              <span id="verifyCode-error" class="field-error" aria-live="polite"></span>
+            </label>
+            <input id="verifyCode" type="text" inputmode="numeric" autocomplete="one-time-code"
+                   maxlength="6" placeholder="6-digit code" />
+
+            <div class="btn-row">
+              <button id="verifyBtn" type="button" class="btn btn-primary">Verify</button>
+            </div>
+
+            <div id="verify-msg" class="msg" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Hidden iframe target for webhook POSTs -->
+    <iframe id="sr-webhook-frame" name="sr-webhook-frame" style="display:none;"></iframe>
+
+    <!-- Hidden POST form used to call the webhook (submit) -->
+    <form id="sr-webhook-submit-form" method="POST" target="sr-webhook-frame" style="display:none;">
+      <input type="hidden" name="action" value="submit">
+      <input type="hidden" name="payload" value="">
+    </form>
+
+    <!-- Hidden POST form used to call the webhook (verify) -->
+    <form id="sr-webhook-verify-form" method="POST" target="sr-webhook-frame" style="display:none;">
+      <input type="hidden" name="action" value="verify">
+      <input type="hidden" name="payload" value="">
+    </form>
+
+<script>
+/**
+ * Set this to your deployed Apps Script web app "exec" URL, e.g.
+ * https://script.google.com/macros/s/AKfycb.../exec
+ */
+const SR_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwPXjV0tcOUnlzRP40knidA-ERez_jGoa3uWPufMvwnIQiXUfsbWkx9D-1efNuzOYd8/exec';
+
+const srFrame = document.getElementById('sr-webhook-frame');
+
+srFrame.addEventListener('load', () => {
+  console.log('IFRAME loaded (webhook response returned).');
+});
+
+function isAllowedOrigin_(origin) {
+  try {
+    const u = new URL(origin);
+    const h = u.hostname;
+    return (
+      h === 'script.google.com' ||
+      h.endsWith('.googleusercontent.com')
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+window.addEventListener('message', (event) => {
+
+  if (!isAllowedOrigin_(event.origin)) {
+    return;
+  }
+
+  const data = event.data || {};
+  const obj =
+    (typeof data === 'string')
+      ? (() => { try { return JSON.parse(data); } catch(e){ return null; } })()
+      : data;
+
+
+  if (obj && obj.type === 'mfm_sr') {
+    handleWebhookResponse(obj);
+  } else {
+    console.log('DROP: unexpected payload shape');
+  }
+});
+
+/* Wire hidden forms to the webhook URL */
+document.getElementById('sr-webhook-submit-form').action = SR_WEBHOOK_URL;
+document.getElementById('sr-webhook-verify-form').action = SR_WEBHOOK_URL;
+
+const saveBtn   = document.getElementById('saveBtn');
+const cancelBtn = document.getElementById('cancelBtn');
+const phoneEl   = document.getElementById('phone');
+const addr      = document.getElementById('address');
+const emailEl   = document.getElementById('email');
+
+const verifyStep  = document.getElementById('verify-step');
+const verifyEmail = document.getElementById('verify-email');
+const verifyCode  = document.getElementById('verifyCode');
+const verifyBtn   = document.getElementById('verifyBtn');
+const verifyMsg   = document.getElementById('verify-msg');
+
+function setFieldError(field, msg) {
+  const el = document.getElementById(field + '-error');
+  if (el) el.textContent = msg || '';
+}
+function setInvalidClass(el, isInvalid) {
+  if (!el) return;
+  el.classList.toggle('is-invalid', !!isInvalid);
+}
+function setMsg(t, isError){
+  const el = document.getElementById('msg');
+  el.textContent = t || '';
+  el.className = isError ? 'error' : '';
+}
+function setVerifyMsg(text, isError){
+  if (!verifyMsg) return;
+  verifyMsg.textContent = text || '';
+  verifyMsg.className = isError ? 'msg error' : 'msg';
+}
+
+function showVerifyStep(email){
+  document.getElementById('sr-form').style.display = 'none';
+  verifyEmail.textContent = email;
+  verifyStep.style.display = 'block';
+  setTimeout(() => { verifyCode.focus(); verifyCode.select(); }, 0);
+}
+
+function showConfirmedSplash(email){
+  const splash = `
+    <style>
+      html,body{
+        height:100%;
+        margin:0;
+        font-family:Georgia,"Times New Roman",Times,serif;
+        background:#f5f5f7;
+        color:#222;
+        display:grid;
+        place-items:center;
+      }
+      .splash{
+        max-width:720px;
+        padding:24px;
+        text-align:center;
+      }
+      .splash h2{
+        font-size:clamp(1.25rem,3.5vw,1.75rem);
+        margin:0 0 10px;
+      }
+      .splash p{
+        font-size:clamp(1rem,2.8vw,1.15rem);
+        margin:0;
+      }
+    </style>
+    <div class="splash">
+      <h2>Thank you — your subscription is confirmed.</h2>
+      <p>
+        The email address <strong>${email}</strong> has been successfully subscribed
+        to news from Midlothian Friends Meeting.
+      </p>
+      <p style="margin-top:12px;">
+        You may now close this tab in your browser.
+      </p>
+    </div>`;
+  document.documentElement.innerHTML = splash;
+}
+
+/* Cancel splash (kept) */
+cancelBtn.addEventListener('click', function(){
+  const splash = `
+    <style>
+      html,body{
+        height:100%;
+        margin:0;
+        font-family:Georgia,"Times New Roman",Times,serif;
+        background:#f5f5f7;
+        color:#222;
+        display:grid;
+        place-items:center;
+      }
+      .splash{ max-width:720px; padding:24px; text-align:center; }
+      .splash h2{ font-size:clamp(1.25rem,3.5vw,1.75rem); margin:0 0 10px; }
+      .splash p{ font-size:clamp(1rem,2.8vw,1.15rem); margin:0; }
+    </style>
+    <div class="splash">
+      <h2>You have successfully canceled your request.</h2>
+      <p>You can close this tab in your browser.</p>
+    </div>`;
+  document.documentElement.innerHTML = splash;
+});
+
+/* Address: max 3 lines, 30 chars each (kept) */
+addr.addEventListener('input', function(){
+  let lines = this.value.replace(/\r\n?/g, '\n').split('\n').slice(0,3);
+  lines = lines.map(l => l.substring(0,30));
+  this.value = lines.join('\n');
+});
+
+/* === Email blur validation (kept) === */
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+emailEl.addEventListener('input', function () {
+  setFieldError('email', '');
+  setInvalidClass(emailEl, false);
+});
+emailEl.addEventListener('blur', function () {
+  const v = (emailEl.value || '').trim();
+  const ok = v && emailRegex.test(v);
+  if (!ok) {
+    setFieldError('email', v ? 'Invalid email' : 'Required');
+    setInvalidClass(emailEl, true);
+    setTimeout(() => { emailEl.focus(); emailEl.select(); }, 0);
+    return;
+  }
+  setFieldError('email', '');
+  setInvalidClass(emailEl, false);
+});
+
+/* === Phone normalization (kept) === */
+function normalizeUSPhoneNANP(raw){
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  let digits = s.replace(/\D+/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+  if (digits.length !== 10) throw new Error('Not a valid US phone number');
+  const a = digits.slice(0,3), b = digits.slice(3,6), c = digits.slice(6);
+  if (!/^[2-9][0-9]{2}$/.test(a)) throw new Error('Invalid area code');
+  if (!/^[2-9][0-9]{2}$/.test(b)) throw new Error('Invalid exchange');
+  return `(${a}) ${b}-${c}`;
+}
+phoneEl.addEventListener('input', function () {
+  setFieldError('phone', '');
+  setInvalidClass(phoneEl, false);
+});
+phoneEl.addEventListener('blur', function () {
+  const raw = (phoneEl.value || '').trim();
+  if (!raw) {
+    setFieldError('phone', '');
+    setInvalidClass(phoneEl, false);
+    return;
+  }
+  try {
+    phoneEl.value = normalizeUSPhoneNANP(raw);
+    setFieldError('phone', '');
+    setInvalidClass(phoneEl, false);
+  } catch (e) {
+    setFieldError('phone', 'Invalid phone');
+    setInvalidClass(phoneEl, true);
+    setTimeout(() => { phoneEl.focus(); phoneEl.select(); }, 0);
+  }
+});
+
+/* ===== Webhook bridge (hidden iframe + postMessage) ===== */
+let srPending = { email: '' };
+
+
+function postToWebhook(action, payloadObj){
+  const form = (action === 'verify')
+    ? document.getElementById('sr-webhook-verify-form')
+    : document.getElementById('sr-webhook-submit-form');
+
+  form.querySelector('input[name="payload"]').value = JSON.stringify(payloadObj || {});
+  form.submit();
+}
+
+/* Handle webhook responses */
+function handleWebhookResponse(res){
+  // res: {type:'mfm_sr', ok:true/false, action:'submit'|'verify', message:'...', code:'...'}
+  if (res.action === 'submit') {
+    if (!res.ok) {
+      setMsg(res.message || 'Error submitting.', true);
+      return;
+    }
+    // success: show verify UI
+    setMsg('');
+    showVerifyStep(srPending.email);
+    return;
+  }
+
+  if (res.action === 'verify') {
+    if (!res.ok) {
+      setVerifyMsg(res.message || 'Verification failed.', true);
+      verifyCode.focus(); verifyCode.select();
+      return;
+    }
+    // success: splash
+    showConfirmedSplash(srPending.email);
+  }
+}
+
+/* Submit button => validate + webhook submit */
+saveBtn.addEventListener('click', function submitForm(){
+  setMsg('');
+  const email     = document.getElementById('email').value.trim().toLowerCase();
+  const firstName = document.getElementById('firstName').value.trim();
+  const lastName  = document.getElementById('lastName').value.trim();
+  let   phone     = phoneEl.value.trim();
+  const address   = document.getElementById('address').value;
+
+  if(email.length > 30)     return setMsg('Email max length is 30 characters.', true);
+  if(firstName.length > 30) return setMsg('First name max length is 30 characters.', true);
+  if(lastName.length > 30)  return setMsg('Last name max length is 30 characters.', true);
+  if(address.length > 90)   return setMsg('Postal address max length is 90 characters.', true);
+
+  if (!email) return setMsg('Email is required.', true);
+  if (!emailRegex.test(email)) return setMsg('Please enter a valid email address.', true);
+  if (!firstName) return setMsg('First name is required.', true);
+  if (!lastName)  return setMsg('Last name is required.', true);
+
+  if (phone){
+    try { phone = normalizeUSPhoneNANP(phone); }
+    catch(e){ phone = ''; }
+  }
+
+  srPending.email = email;
+
+  setMsg('Submitting…');
+  postToWebhook('submit', { email, firstName, lastName, phone, address });
+});
+
+/* Verify button => webhook verify */
+verifyBtn.addEventListener('click', function(){
+  setVerifyMsg('');
+
+  const email = (document.getElementById('email').value || '').trim().toLowerCase();
+  const code  = (verifyCode.value || '').replace(/\D+/g, '').trim();
+
+  if (code.length !== 6) {
+    setVerifyMsg('Please enter the 6-digit code.', true);
+    verifyCode.focus(); verifyCode.select();
+    return;
+  }
+
+  srPending.email = email;
+
+  setVerifyMsg('Verifying…');
+  postToWebhook('verify', { email, code });
+});
+
+verifyCode.addEventListener('input', function(){ setVerifyMsg(''); });
+</script>
+  </body>
+</html>
