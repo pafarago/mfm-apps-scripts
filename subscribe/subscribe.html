@@ -6,7 +6,7 @@
     <title>Midlothian Friends — Self-Registration</title>
 
 <style>
-/* === Your existing CSS (kept) === */
+/* (UNCHANGED CSS) */
 html {
   font-size: 16px;
   line-height: 1.5;
@@ -15,6 +15,11 @@ html {
   text-size-adjust: 100%;
   overflow-x: hidden;
   position: relative;
+}
+
+/* Prevent horizontal overflow from padding+border on 100%-width elements */
+*, *::before, *::after {
+  box-sizing: Border-box;
 }
 :root {
   --space-xs: clamp(4px, 1vw, 8px);
@@ -50,6 +55,7 @@ p {
   padding: clamp(10px, 3vw, 18px);
 }
 .content-box {
+  box-sizing: border-box;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: clamp(14px, 4vw, 22px);
@@ -111,21 +117,18 @@ textarea {
   resize: vertical;
   white-space: pre-wrap;
 }
+.field-hint {
+  width: 95%;
+  max-width: 95%;
+  margin: 6px auto 0;   /* centers it exactly like the input */
+  font-size: clamp(14px, 2.8vw, 16px);
+  color: #444;
+}
 .field-error {
   margin-left: 8px;
   font-size: clamp(14px, 2.5vw, 16px);
   color: var(--error);
 }
-
-/* NEW: small hint under Email field */
-.field-hint{
-  width: 95%;
-  max-width: 95%;
-  margin: 6px auto 0;
-  font-size: clamp(14px, 2.8vw, 16px);
-  color: #444;
-}
-
 .actions {
   display: flex;
   flex-direction: column;
@@ -172,8 +175,6 @@ textarea {
     justify-content: flex-start;
   }
 }
-
-/* minimal msg styling */
 #msg, #verify-msg { margin-top: 10px; font-size: 1rem; }
 .error { color: #b00; }
 </style>
@@ -197,7 +198,7 @@ textarea {
             <label for="email">Email <span id="email-error" class="field-error" aria-live="polite"></span></label>
             <input id="email" type="email" required inputmode="email" autocomplete="email"
                    maxlength="30" placeholder="name@example.org">
-            <div class="field-hint">If this email is already subscribed, this will update the existing record.</div>
+            <div class="field-hint">If this email address is already subscribed, this form will update your information.</div>
           </div>
 
           <div class="field">
@@ -232,7 +233,6 @@ textarea {
           <div id="msg" role="status" aria-live="polite"></div>
         </form>
 
-        <!-- verify step (kept) -->
         <div id="verify-step" class="form-wrap" style="display:none;">
           <div class="content-box">
             <h2>Verify your email</h2>
@@ -260,33 +260,20 @@ textarea {
       </section>
     </main>
 
-    <!-- Hidden iframe target for webhook POSTs -->
     <iframe id="sr-webhook-frame" name="sr-webhook-frame" style="display:none;"></iframe>
 
-    <!-- Hidden POST form used to call the webhook (submit) -->
     <form id="sr-webhook-submit-form" method="POST" target="sr-webhook-frame" style="display:none;">
       <input type="hidden" name="action" value="submit">
       <input type="hidden" name="payload" value="">
     </form>
 
-    <!-- Hidden POST form used to call the webhook (verify) -->
     <form id="sr-webhook-verify-form" method="POST" target="sr-webhook-frame" style="display:none;">
       <input type="hidden" name="action" value="verify">
       <input type="hidden" name="payload" value="">
     </form>
 
 <script>
-/**
- * Set this to your deployed Apps Script web app "exec" URL, e.g.
- * https://script.google.com/macros/s/AKfycb.../exec
- */
 const SR_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwPXjV0tcOUnlzRP40knidA-ERez_jGoa3uWPufMvwnIQiXUfsbWkx9D-1efNuzOYd8/exec';
-
-const srFrame = document.getElementById('sr-webhook-frame');
-
-srFrame.addEventListener('load', () => {
-  console.log('IFRAME loaded (webhook response returned).');
-});
 
 function isAllowedOrigin_(origin) {
   try {
@@ -303,10 +290,7 @@ function isAllowedOrigin_(origin) {
 }
 
 window.addEventListener('message', (event) => {
-
-  if (!isAllowedOrigin_(event.origin)) {
-    return;
-  }
+  if (!isAllowedOrigin_(event.origin)) return;
 
   const data = event.data || {};
   const obj =
@@ -314,11 +298,8 @@ window.addEventListener('message', (event) => {
       ? (() => { try { return JSON.parse(data); } catch(e){ return null; } })()
       : data;
 
-
   if (obj && obj.type === 'mfm_sr') {
     handleWebhookResponse(obj);
-  } else {
-    console.log('DROP: unexpected payload shape');
   }
 });
 
@@ -364,7 +345,18 @@ function showVerifyStep(email){
   setTimeout(() => { verifyCode.focus(); verifyCode.select(); }, 0);
 }
 
-function showConfirmedSplash(email){
+/**
+ * CHANGED: accept isUpdate to customize splash.
+ */
+function showConfirmedSplash(email, isUpdate){
+  const headline = isUpdate
+    ? 'Thank you — your update is confirmed.'
+    : 'Thank you — your subscription is confirmed.';
+
+  const body = isUpdate
+    ? `The information for <strong>${email}</strong> has been successfully updated.`
+    : `The email address <strong>${email}</strong> has been successfully subscribed to news from Midlothian Friends Meeting.`;
+
   const splash = `
     <style>
       html,body{
@@ -391,14 +383,9 @@ function showConfirmedSplash(email){
       }
     </style>
     <div class="splash">
-      <h2>Thank you — your subscription is confirmed.</h2>
-      <p>
-        The email address <strong>${email}</strong> has been successfully subscribed
-        to news from Midlothian Friends Meeting.
-      </p>
-      <p style="margin-top:12px;">
-        You may now close this tab in your browser.
-      </p>
+      <h2>${headline}</h2>
+      <p>${body}</p>
+      <p style="margin-top:12px;">You may now close this tab in your browser.</p>
     </div>`;
   document.documentElement.innerHTML = splash;
 }
@@ -427,14 +414,12 @@ cancelBtn.addEventListener('click', function(){
   document.documentElement.innerHTML = splash;
 });
 
-/* Address: max 3 lines, 30 chars each (kept) */
 addr.addEventListener('input', function(){
   let lines = this.value.replace(/\r\n?/g, '\n').split('\n').slice(0,3);
   lines = lines.map(l => l.substring(0,30));
   this.value = lines.join('\n');
 });
 
-/* === Email blur validation (kept) === */
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 emailEl.addEventListener('input', function () {
   setFieldError('email', '');
@@ -453,7 +438,6 @@ emailEl.addEventListener('blur', function () {
   setInvalidClass(emailEl, false);
 });
 
-/* === Phone normalization (kept) === */
 function normalizeUSPhoneNANP(raw){
   const s = String(raw || '').trim();
   if (!s) return '';
@@ -487,7 +471,6 @@ phoneEl.addEventListener('blur', function () {
   }
 });
 
-/* ===== Webhook bridge (hidden iframe + postMessage) ===== */
 let srPending = { email: '' };
 
 function postToWebhook(action, payloadObj){
@@ -499,15 +482,13 @@ function postToWebhook(action, payloadObj){
   form.submit();
 }
 
-/* Handle webhook responses */
+/* CHANGED: use res.isUpdate when showing splash */
 function handleWebhookResponse(res){
-  // res: {type:'mfm_sr', ok:true/false, action:'submit'|'verify', message:'...', code:'...'}
   if (res.action === 'submit') {
     if (!res.ok) {
       setMsg(res.message || 'Error submitting.', true);
       return;
     }
-    // success: show verify UI
     setMsg('');
     showVerifyStep(srPending.email);
     return;
@@ -519,12 +500,10 @@ function handleWebhookResponse(res){
       verifyCode.focus(); verifyCode.select();
       return;
     }
-    // success: splash
-    showConfirmedSplash(srPending.email);
+    showConfirmedSplash(srPending.email, !!res.isUpdate);
   }
 }
 
-/* Submit button => validate + webhook submit */
 saveBtn.addEventListener('click', function submitForm(){
   setMsg('');
   const email     = document.getElementById('email').value.trim().toLowerCase();
@@ -554,7 +533,6 @@ saveBtn.addEventListener('click', function submitForm(){
   postToWebhook('submit', { email, firstName, lastName, phone, address });
 });
 
-/* Verify button => webhook verify */
 verifyBtn.addEventListener('click', function(){
   setVerifyMsg('');
 
