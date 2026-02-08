@@ -35,9 +35,11 @@ function doPost(e) {
     }
 
     if (action === 'verify') {
-      const msg = selfRegVerify(payload);
+      // CHANGED: return { message, isUpdate } so the client can display the right splash
+      const out = selfRegVerify(payload); // { message, isUpdate }
+      const msg = (out && out.message) ? out.message : String(out || '');
       const ok = /confirmed/i.test(String(msg || ''));
-      return srPostMessageHtml_({ ok: ok, action: 'verify', message: msg });
+      return srPostMessageHtml_({ ok: ok, action: 'verify', message: msg, isUpdate: !!(out && out.isUpdate) });
     }
 
     return srPostMessageHtml_({ ok: false, action: action || 'unknown', message: 'Unknown action.' });
@@ -54,7 +56,9 @@ function srPostMessageHtml_(obj) {
     type: 'mfm_sr',
     ok: !!obj.ok,
     action: obj.action || '',
-    message: obj.message || ''
+    message: obj.message || '',
+    // NEW: optional fields, only used when present
+    isUpdate: (obj.isUpdate === true)
   });
 
   return HtmlService
@@ -155,7 +159,7 @@ function selfRegSubmit(form) {
     catch (err) { phone = ''; }
   }
 
-  // NEW: if email exists, treat as an update (do not reject)
+  // if email exists, treat as an update (do not reject)
   const rosterHit = srLookupRosterByEmail_(email);
   const isUpdate  = !!rosterHit.exists;
   const orig      = rosterHit.info || { first:'', last:'', phone:'', addr:'' };
@@ -190,7 +194,6 @@ function selfRegSubmit(form) {
 
   pending.appendRow(row);
 
-  // UPDATED: confirmation email now includes formatted cards, and for updates shows old vs new.
   srSendConfirmEmail_(email, token, {
     isUpdate,
     requested: { first, last, phone, addr },
@@ -284,7 +287,6 @@ function srFieldRowsHtml_(obj) {
     ['Address', obj.addr || '']
   ];
 
-  // Address is nicer as <pre>-ish block
   return rows.map(([k, v]) => {
     const vv = (k === 'Address')
       ? '<div style="white-space:pre-wrap;line-height:1.35;">' + srEscHtml_(v || '') + '</div>'
@@ -309,11 +311,6 @@ function srCardHtml_(title, obj) {
   );
 }
 
-/**
- * Send verification email.
- * For new record: one card (requested).
- * For update: two cards (original vs requested) + explicit "ignore if you do not want to proceed".
- */
 function srSendConfirmEmail_(email, token, ctx) {
   const isUpdate = !!(ctx && ctx.isUpdate);
   const requested = (ctx && ctx.requested) ? ctx.requested : { first:'', last:'', phone:'', addr:'' };
@@ -412,6 +409,9 @@ function srSendConfirmEmail_(email, token, ctx) {
   );
 }
 
+/**
+ * CHANGED: returns { message, isUpdate }
+ */
 function selfRegVerify(payload) {
   if (!payload) throw new Error('Missing verification data');
 
@@ -425,7 +425,7 @@ function selfRegVerify(payload) {
   srEnsurePendingHeaders_(pending);
 
   const data    = pending.getDataRange().getValues();
-  if (data.length < 2) return 'That code was not found (or it has already been used).';
+  if (data.length < 2) return { message: 'That code was not found (or it has already been used).', isUpdate: false };
 
   const headers = data[0].map(String);
   const iToken  = headers.indexOf('Token');
@@ -435,7 +435,6 @@ function selfRegVerify(payload) {
   const iPhone  = headers.indexOf('Phone');
   const iAddr   = headers.indexOf('Address');
   const iConf   = headers.indexOf('Confirmed at');
-
   const iIsUpd  = headers.indexOf('Is update');
 
   if ([iToken,iEmail,iFirst,iLast,iPhone,iAddr,iConf].some(i => i < 0)) {
@@ -454,7 +453,7 @@ function selfRegVerify(payload) {
   }
 
   if (rowIdx < 0) {
-    return 'That code was not found (or it has already been used). Please double-check and try again.';
+    return { message: 'That code was not found (or it has already been used). Please double-check and try again.', isUpdate: false };
   }
 
   const first = String(data[rowIdx][iFirst] || '').trim();
@@ -469,7 +468,7 @@ function selfRegVerify(payload) {
 
   srNotifyAdminConfirmed_(email, first, last, isUpdate);
 
-  return 'Thank you — your subscription is confirmed.';
+  return { message: 'Thank you — your subscription is confirmed.', isUpdate: isUpdate };
 }
 
 function srApplyToRoster_(email, info) {
