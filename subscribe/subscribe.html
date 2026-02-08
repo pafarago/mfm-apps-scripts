@@ -116,6 +116,16 @@ textarea {
   font-size: clamp(14px, 2.5vw, 16px);
   color: var(--error);
 }
+
+/* NEW: small hint under Email field */
+.field-hint{
+  width: 95%;
+  max-width: 95%;
+  margin: 6px auto 0;
+  font-size: clamp(14px, 2.8vw, 16px);
+  color: #444;
+}
+
 .actions {
   display: flex;
   flex-direction: column;
@@ -177,7 +187,7 @@ textarea {
             src="https://static.wixstatic.com/media/66c239_957d211722134ee2b014d0dec57f1aa9~mv2.png"
             alt="Midlothian Friends Meeting - Wix">
           <div class="site-line">Midlothian Friends Meeting</div>
-          <div class="sub-line">News Subscription</div>
+          <div class="sub-line">News Subscription / Update</div>
         </div>
 
         <h1 id="title" class="visually-hidden">News Subscription</h1>
@@ -187,6 +197,7 @@ textarea {
             <label for="email">Email <span id="email-error" class="field-error" aria-live="polite"></span></label>
             <input id="email" type="email" required inputmode="email" autocomplete="email"
                    maxlength="30" placeholder="name@example.org">
+            <div class="field-hint">If this email is already subscribed, this will update the existing record.</div>
           </div>
 
           <div class="field">
@@ -283,7 +294,8 @@ function isAllowedOrigin_(origin) {
     const h = u.hostname;
     return (
       h === 'script.google.com' ||
-      h.endsWith('.googleusercontent.com')
+      h.endsWith('.googleusercontent.com') ||
+      h === 'googleusercontent.com'
     );
   } catch (e) {
     return false;
@@ -478,7 +490,6 @@ phoneEl.addEventListener('blur', function () {
 /* ===== Webhook bridge (hidden iframe + postMessage) ===== */
 let srPending = { email: '' };
 
-
 function postToWebhook(action, payloadObj){
   const form = (action === 'verify')
     ? document.getElementById('sr-webhook-verify-form')
@@ -566,3 +577,4 @@ verifyCode.addEventListener('input', function(){ setVerifyMsg(''); });
 </script>
   </body>
 </html>
+
