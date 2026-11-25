@@ -1,4 +1,3 @@
-
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       :root {
@@ -90,20 +89,10 @@
         font-size: clamp(1rem, 2.5vw, 1.2rem);
       }
 
-      .mark.ok::before {
-        content: "";
-        color: var(--accent-green);
-      }
+      .mark.ok::before   { content: ""; color: var(--accent-green); }
+      .mark.fail::before { content: ""; color: var(--accent-red); }
+      .mark.running::before { content: ""; color: var(--muted); }
 
-      .mark.fail::before {
-        content: "";
-        color: var(--accent-red);
-      }
-
-      .mark.running::before {
-        content: "";
-        color: var(--muted);
-      }
       /* Toast inside properties grid */
       .toast {
         border: 1px solid var(--border);
@@ -118,104 +107,86 @@
       .toast.show    { display: block; }
       .toast.hide    { display: none; }
 
-    /* Button area: 3-column layout */
-    .grid.buttons {
-      display: grid;
-      grid-template-columns: 1fr 4fr 1fr; /* narrow spacer, wide button column, narrow marks */
-      gap: 8px 12px;
-      align-items: center;
-    }
+      /* Button area: 3-column layout */
+      .grid.buttons {
+        display: grid;
+        grid-template-columns: 1fr 4fr 1fr;
+        gap: 8px 12px;
+        align-items: center;
+      }
+      .grid.buttons .btn  { justify-self: center; width: 100%; }
+      .grid.buttons .mark { justify-self: start; margin-left: 6px; }
 
-    /* Buttons centered in column 2 */
-    .grid.buttons .btn {
-      justify-self: center;
-      width: 100%; /* fill the middle column */
-    }
+      /* Properties area: 2-column layout */
+      .grid.props {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 8px 12px;
+        align-items: center;
+      }
+      .grid.props > div:nth-child(odd) { font-weight: 600; }
 
-    /* Marks in column 3, left-aligned with margin */
-    .grid.buttons .mark {
-      justify-self: start;
-      margin-left: 6px;
-    }
+      .counter-box {
+        display: inline-block;
+        min-width: 6ch;
+        text-align: center;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-family: monospace;
+        font-size: clamp(0.9rem, 2.5vw, 1rem);
+      }
 
-    /* Properties area: 2-column layout */
-    .grid.props {
-      display: grid;
-      grid-template-columns: 1fr 2fr; /* 1/3 labels, 2/3 values */
-      gap: 8px 12px;
-      align-items: center;
-    }
+      .digital-clock {
+        font-family: monospace;
+        font-size: clamp(0.9rem, 2.5vw, 1rem);
+        text-align: center;
+        color: #0f0;
+        background-color: #000;
+        padding: 4px 8px;
+        border-radius: 8px;
+        display: inline-block;
+        width: auto;
+        min-width: unset;
+        letter-spacing: 2px;
+        white-space: nowrap;
+      }
 
-    /* Optional: label emphasis */
-    .grid.props > div:nth-child(odd) {
-      font-weight: 600;
-    }
+      .section-separator {
+        border-top: 1px solid var(--border);
+        margin: 16px 0;
+      }
 
-    .counter-box {
-      display: inline-block;
-      min-width: 6ch;
-      text-align: center;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 4px 8px;
-      font-family: monospace;
-      font-size: clamp(0.9rem, 2.5vw, 1rem);
-    }
-
-    .digital-clock {
-  font-family: monospace;
-  font-size: clamp(0.9rem, 2.5vw, 1rem);
-  text-align: center;
-  color: #0f0;
-  background-color: #000;
-  padding: 4px 8px;         /* left/right breathing room */
-  border-radius: 8px;
-  display: inline-block;    /* shrink to fit content */
-  width: auto;              /* don't stretch */
-  min-width: unset;         /* remove forced width */
-  letter-spacing: 2px;
-  white-space: nowrap;      /* prevent wrapping */
-}
-
-    .section-separator {
-      border-top: 1px solid var(--border);
-      margin: 16px 0;
-    }
-.modal.hide { display: none; }
-.modal {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;
-}
-.modal-content {
-  background: #fff; padding: 20px; border-radius: 8px; max-width: 400px; text-align: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-.modal-buttons { margin-top: 16px; display: flex; justify-content: space-around; }
+      /* Modals */
+      .modal.hide { display: none; }
+      .modal {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.4);
+        display: flex; align-items: center; justify-content: center;
+      }
+      .modal-content {
+        background: #fff; padding: 20px; border-radius: 8px;
+        max-width: 400px; text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      }
+      .modal-buttons { margin-top: 16px; display: flex; justify-content: space-around; }
     </style>
- 
+
     <div class="container">
       <div class="header">
         <img src="https://midlothianfriends.freeddns.org/logo.png" alt="Logo">
         <div class="title">Email Merge Dashboard</div>
         <div class="title-line"></div>
       </div>
-      <!-- Buttons grid -->
+
       <!-- Button grid: 3 columns -->
       <div class="grid buttons">
         <div></div>
         <button id="btn-access" class="btn" onclick="runAction('checkAccess')">Check Access</button>
         <div id="mark-access" class="mark"></div>
-<!--
-        <div></div>
-        <button id="btn-logout" class="btn" onclick="runAction('logOut')">Log Out</button>
-        <div id="mark-logout" class="mark"></div>
--->
-        <div></div>
-        <button id="btn-edit-template" class="btn" onclick="openTemplate()">Edit Email Template</button>
-        <div id="mark-edit-template" class="mark"></div>
 
         <div></div>
-        <button id="btn-validate" class="btn" onclick="runAction('menuValidateTemplate')">Validate Template</button>
+        <button id="btn-validate" class="btn" onclick="validateAndPreview()">Validate Template</button>
         <div id="mark-validate" class="mark"></div>
 
         <div></div>
@@ -229,7 +200,6 @@
         <div></div>
         <button id="btn-send" class="btn" onclick="confirmSendAll()">Send All</button>
         <div id="mark-send" class="mark"></div>
-
       </div>
 
       <!-- Separator -->
@@ -237,7 +207,6 @@
 
       <!-- Properties grid: 2 columns -->
       <div class="grid props">
-        
         <div>Current user:</div>
         <div id="merge-user"></div>
 
@@ -258,7 +227,7 @@
 
         <div>Running elapsed time:</div>
         <div><span id="merge-running-time" class="digital-clock">00:00:00.000</span></div>
-        
+
         <div>Pause elapsed time:</div>
         <div><span id="merge-elapsed-time" class="digital-clock">00:00:00.000</span></div>
 
@@ -281,8 +250,9 @@
           </div>
         </div>
       </div>
+    </div><!-- end .container -->
 
-    <!-- Place modal here, outside the container -->
+    <!-- Confirm Send Modal -->
     <div id="confirm-modal" class="modal hide">
       <div class="modal-content">
         <p id="confirm-text">Are you sure you want to send ALL messages now?</p>
@@ -292,210 +262,192 @@
         </div>
       </div>
     </div>
+
+    <!-- Template Preview Modal -->
+    <div id="template-modal" class="modal hide">
+      <div class="modal-content" style="max-width:700px;width:90vw;max-height:85vh;overflow-y:auto;text-align:left;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <strong id="template-modal-subject" style="font-size:1rem;"></strong>
+          <button class="btn" style="width:auto;padding:6px 16px;"
+                  onclick="document.getElementById('template-modal').classList.add('hide')">Close</button>
+        </div>
+        <div id="template-modal-body"></div>
+      </div>
+    </div>
+
     <script>
       const POLL_MS = 5000;
       const ACTIONS = {
-        checkAccess:{btn:'btn-access',mark:'mark-access',errorKey:'accessError'},
-        menuValidateTemplate:{btn:'btn-validate',mark:'mark-validate',errorKey:'validationError'},
-        menuRefreshMailingList:{btn:'btn-reset',mark:'mark-reset',errorKey:'resetError'},
-        menuPreview:{btn:'btn-preview',mark:'mark-preview',errorKey:'previewError'},
-        menuSendAll:{btn:'btn-send',mark:'mark-send',errorKey:'sendError'}  
+        checkAccess:            { btn:'btn-access',   mark:'mark-access',   errorKey:'accessError'     },
+        menuValidateTemplate:   { btn:'btn-validate', mark:'mark-validate', errorKey:'validationError' },
+        menuRefreshMailingList: { btn:'btn-reset',    mark:'mark-reset',    errorKey:'resetError'      },
+        menuPreview:            { btn:'btn-preview',  mark:'mark-preview',  errorKey:'previewError'    },
+        menuSendAll:            { btn:'btn-send',     mark:'mark-send',     errorKey:'sendError'       }
       };
-      let isRunning=false;
-      const toastEl=document.getElementById('toast');
-      const toastBody=document.getElementById('toast-body');
-      let toastTimer=null;
+
+      let isRunning = false;
+      const toastEl   = document.getElementById('toast');
+      const toastBody = document.getElementById('toast-body');
+      let toastTimer  = null;
+
+      // ── Send All confirmation ──────────────────────────────────────────────
       function confirmSendAll() {
-        // Grab the mailing list count from your dashboard
-        const listCountEl = document.getElementById('merge-list-count');
-        const count = listCountEl ? listCountEl.textContent : '0';
-
-        // Update modal text with the number of emails
-        const confirmText = document.getElementById('confirm-text');
-        confirmText.textContent = `Are you sure you want to send ALL ${count} emails now?`;
-
-        // Show modal
+        const count = document.getElementById('merge-list-count').textContent;
+        document.getElementById('confirm-text').textContent =
+          `Are you sure you want to send ALL ${count} emails now?`;
         const modal = document.getElementById('confirm-modal');
         modal.classList.remove('hide');
-
-        // Wire up buttons
         document.getElementById('confirm-ok').onclick = function() {
           modal.classList.add('hide');
-          runAction('menuSendAll'); // proceed with send
+          runAction('menuSendAll');
         };
         document.getElementById('confirm-cancel').onclick = function() {
-          modal.classList.add('hide'); // just close
+          modal.classList.add('hide');
         };
       }
-      function showToast(msg,type='success',duration=10000){
-        toastEl.className='toast '+type+' show';
-        toastBody.textContent=msg;
-        if(toastTimer)clearTimeout(toastTimer);
-        toastTimer=setTimeout(hideToast,duration);
-      }
-      function hideToast(){
-        toastEl.classList.remove('show');
-        if(toastTimer){clearTimeout(toastTimer);toastTimer=null;}
-      }
-      toastEl.addEventListener('click',hideToast);
 
-      function chirp(){
-        try{
-          const ctx=new(window.AudioContext||window.webkitAudioContext)();
-          const osc=ctx.createOscillator();
-          const gain=ctx.createGain();
-          osc.type='square';
-          osc.frequency.setValueAtTime(220,ctx.currentTime);
-          gain.gain.setValueAtTime(0.02,ctx.currentTime);
+      // ── Toast ──────────────────────────────────────────────────────────────
+      function showToast(msg, type='success', duration=10000) {
+        toastEl.className = 'toast ' + type + ' show';
+        toastBody.textContent = msg;
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(hideToast, duration);
+      }
+      function hideToast() {
+        toastEl.classList.remove('show');
+        if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+      }
+      toastEl.addEventListener('click', hideToast);
+
+      // ── Audio chirp for disabled button clicks ─────────────────────────────
+      function chirp() {
+        try {
+          const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(220, ctx.currentTime);
+          gain.gain.setValueAtTime(0.02, ctx.currentTime);
           osc.connect(gain).connect(ctx.destination);
           osc.start();
-          setTimeout(()=>{osc.stop();ctx.close();},180);
-        }catch(e){}
+          setTimeout(() => { osc.stop(); ctx.close(); }, 180);
+        } catch(e) {}
       }
 
-    function setButtonsRunning(actionKey, running) {
-      isRunning = running;
-      Object.keys(ACTIONS).forEach(k => {
-        const btn = document.getElementById(ACTIONS[k].btn);
-        if (running) {
-          btn.disabled = (k !== actionKey);  // disable others
-          btn.classList.toggle('running', k === actionKey);
-        } else {
-          btn.disabled = false;              // re-enable all
-          btn.classList.remove('running');
-        }
-      });
-    }   
-
-      document.addEventListener('click',ev=>{
-        if(ev.target.classList.contains('btn')&&ev.target.disabled){
+      document.addEventListener('click', ev => {
+        if (ev.target.classList.contains('btn') && ev.target.disabled) {
           chirp();
           ev.stopPropagation();
           ev.preventDefault();
         }
-      },true);
+      }, true);
 
-      function setMark(actionKey, ok) {
-        const markId = ACTIONS[actionKey].mark;
-        const el = document.getElementById(markId);
-        el.classList.remove('ok','fail','running');
-        if (ok === true) {
-          el.classList.add('ok');      // ✔
-          el.textContent = "✅";
-        } else if (ok === false) {
-          el.classList.add('fail');    // ✖
-          el.texctContent = "❌ "
-        } else {
-          el.classList.add('running'); // ...
-          el.textContent = "⚡"  
-        }
+      // ── Button state management ────────────────────────────────────────────
+      function setButtonsRunning(actionKey, running) {
+        isRunning = running;
+        Object.keys(ACTIONS).forEach(k => {
+          const btn = document.getElementById(ACTIONS[k].btn);
+          if (running) {
+            btn.disabled = (k !== actionKey);
+            btn.classList.toggle('running', k === actionKey);
+          } else {
+            btn.disabled = false;
+            btn.classList.remove('running');
+          }
+        });
       }
 
-      // All server-side menu functions return { status: true } on success
-      // or { status: false, msg: <string> } on failure.
+      function setMark(actionKey, ok) {
+        const el = document.getElementById(ACTIONS[actionKey].mark);
+        el.classList.remove('ok', 'fail', 'running');
+        if (ok === true)       { el.classList.add('ok');      el.textContent = '✅'; }
+        else if (ok === false) { el.classList.add('fail');    el.textContent = '❌'; }
+        else                   { el.classList.add('running'); el.textContent = '⚡'; }
+      }
 
-      function runAction(actionKey){
-        if(isRunning){chirp();return;}
-        const action=ACTIONS[actionKey];
-        if(!action)return;
-        setButtonsRunning(actionKey,true);
-        setMark(actionKey,null); // show "..." while running
+      // ── Generic server action runner ───────────────────────────────────────
+      function runAction(actionKey) {
+        if (isRunning) { chirp(); return; }
+        const action = ACTIONS[actionKey];
+        if (!action) return;
+        setButtonsRunning(actionKey, true);
+        setMark(actionKey, null);
         google.script.run
-          .withSuccessHandler(function(result){
-            if (result.status === true) {
-              setMark(actionKey,true);   // ✔
-            } else {
-              setMark(actionKey,false);  // ✖
+          .withSuccessHandler(function(result) {
+            setMark(actionKey, result.status === true);
+            if (result.status !== true) {
               showToast(result.msg || (actionKey + ' failed'), 'error', 10000);
             }
-            setButtonsRunning(actionKey,false);
-
-            // 🔑 Immediately poll and update dashboard
-            pollOnce(function(props){
-              updateMergeInfo(props);
-            });
+            setButtonsRunning(actionKey, false);
+            pollOnce(updateMergeInfo);
           })
-          .withFailureHandler(function(err){
-            setMark(actionKey,false);    // ✖
+          .withFailureHandler(function(err) {
+            setMark(actionKey, false);
             showToast((err && err.message) || (actionKey + ' failed'), 'error', 10000);
-            setButtonsRunning(actionKey,false);
-
-            // 🔑 Even on failure, refresh dashboard state
-            pollOnce(function(props){
-              updateMergeInfo(props);
-            });
+            setButtonsRunning(actionKey, false);
+            pollOnce(updateMergeInfo);
           })[actionKey]();
       }
 
+      // ── Validate Template — opens preview modal ────────────────────────────
+      function validateAndPreview() {
+        if (isRunning) { chirp(); return; }
+        setButtonsRunning('menuValidateTemplate', true);
+        setMark('menuValidateTemplate', null);
 
-        function updateMergeInfo(props) {
-
-          // Daily quota
-          const quotaEl = document.getElementById('merge-quota');
-          if (quotaEl) quotaEl.textContent = String(props.remainingDailyQuota || 0).padStart(4, '0');
-
-          // Remaining to send
-          const remainingEl = document.getElementById('merge-remaining');
-          if (remainingEl) remainingEl.textContent = String(props.remainingToSend || 0).padStart(4, '0');
-
-          // Sent count
-          const sentEl = document.getElementById('merge-sent');
-          if (sentEl) sentEl.textContent = String(props.sent || 0).padStart(4, '0');
-
-          // List count
-          const listCountEl = document.getElementById('merge-list-count');
-          if (listCountEl) listCountEl.textContent = String(props.listCount || 0).padStart(4, '0');
-
-          // State
-          const stateEl = document.getElementById('merge-state');
-          if (stateEl) stateEl.textContent = props.state || 'Idle';
-
-          // Start timestamp
-          const startEl = document.getElementById('merge-start');
-          if (startEl) startEl.textContent = props.timestampStart || '';
-
-          // Start operating mode
-          const modeEl = document.getElementById('merge-testing-mode');
-          if (modeEl) modeEl.textContent = props.testingMode || '';
-
-          // End timestamp
-          const endEl = document.getElementById('merge-last-sent');
-          if (endEl) endEl.textContent = props.timestampLast || ''; // use timestampLast from getMergeInfo
-
-          // Pause elapsed time
-          const elapsedEl = document.getElementById('merge-elapsed-time');
-          if (elapsedEl) elapsedEl.textContent = props.elapsedTime || '00:00:00.000'; // use elapsedTime from getMergeInfo
-
-          // Running elapsed time
-          const runningEl = document.getElementById('merge-running-time');
-          if (runningEl) runningEl.textContent = props.runningTime || '00:00:00.000'; // use elapsedTime from getMergeInfo
-
-          // Current user
-          const userEl = document.getElementById('merge-user');
-          if (userEl) userEl.textContent = props.currentUser || '(none)';
-
-          // Next resume time
-          const resumeEl = document.getElementById('merge-next-resume');
-          if (resumeEl) resumeEl.textContent = props.nextResume || '';
-        }
-
-      function openTemplate() {
-        google.script.run.withSuccessHandler(function(docId) {
-          const url = 'https://docs.google.com/document/d/' + docId + '/edit';
-          window.open(url, '_blank');
-        }).getDocTemplateId();
+        google.script.run
+          .withSuccessHandler(function(result) {
+            setButtonsRunning('menuValidateTemplate', false);
+            if (result.previewHtml) {
+              document.getElementById('template-modal-subject').textContent =
+                'Subject: ' + (result.subject || '(no subject)');
+              document.getElementById('template-modal-body').innerHTML = result.previewHtml;
+              document.getElementById('template-modal').classList.remove('hide');
+              setMark('menuValidateTemplate', result.status);
+            } else {
+              // No template or multiple templates — show toast only
+              setMark('menuValidateTemplate', false);
+              showToast(result.msg, 'error', 15000);
+            }
+          })
+          .withFailureHandler(function(err) {
+            setButtonsRunning('menuValidateTemplate', false);
+            setMark('menuValidateTemplate', false);
+            showToast((err && err.message) || 'Validate failed', 'error', 10000);
+          })
+          .menuValidateTemplate();
       }
 
-      function pollOnce(cb){
-        google.script.run.withSuccessHandler(function(props){
-          updateMergeInfo(props);
-          if(cb)cb(props);
-        }).getMergeInfo();
+      // ── Dashboard data update ──────────────────────────────────────────────
+      function updateMergeInfo(props) {
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        const pad = (n)       => String(n || 0).padStart(4, '0');
+
+        set('merge-quota',        pad(props.remainingDailyQuota));
+        set('merge-remaining',    pad(props.remainingToSend));
+        set('merge-sent',         pad(props.sent));
+        set('merge-list-count',   pad(props.listCount));
+        set('merge-state',        props.state        || 'Idle');
+        set('merge-start',        props.timestampStart || '');
+        set('merge-testing-mode', props.testingMode  || '');
+        set('merge-last-sent',    props.timestampLast || '');
+        set('merge-elapsed-time', props.elapsedTime  || '00:00:00.000');
+        set('merge-running-time', props.runningTime  || '00:00:00.000');
+        set('merge-user',         props.currentUser  || '(none)');
+        set('merge-next-resume',  props.nextResume   || '');
       }
-      function poll(){ pollOnce(); }
-      
-      setInterval(poll,POLL_MS);
+
+      // ── Polling ────────────────────────────────────────────────────────────
+      function pollOnce(cb) {
+        google.script.run
+          .withSuccessHandler(function(props) {
+            updateMergeInfo(props);
+            if (cb) cb(props);
+          })
+          .getMergeInfo();
+      }
+      function poll() { pollOnce(); }
+
+      setInterval(poll, POLL_MS);
       poll();
-	
-</script>
- 
+    </script>
